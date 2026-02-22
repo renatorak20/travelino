@@ -8,7 +8,7 @@ import { useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../config";
 import { useTheme } from "../context/ThemeContext";
 
-export default function Login() {
+export default function Login({ onLogin }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -25,7 +25,8 @@ export default function Login() {
       });
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("userId", res.data.user._id);
-      navigate(`/profile/${res.data._id}`);
+      await onLogin();
+      navigate(`/profile/${res.data.user._id}`);
     } catch (err) {
       setError(err.response?.data?.message || "Login failed");
     }

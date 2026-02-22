@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Button,
   TextField,
@@ -6,18 +6,12 @@ import {
   Typography,
   Container,
   Paper,
-  Card,
-  CardContent,
-  IconButton,
   Divider,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import Brightness4Icon from "@mui/icons-material/Brightness4";
-import Brightness7Icon from "@mui/icons-material/Brightness7";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../config";
-import { useTheme } from "../context/ThemeContext";
 
 export default function Settings() {
   const [passwordData, setPasswordData] = useState({
@@ -25,17 +19,29 @@ export default function Settings() {
     newPassword: "",
     confirmPassword: "",
   });
+  const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const navigate = useNavigate();
-  const { darkMode, toggleDarkMode } = useTheme();
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await axios.get(`${API_BASE_URL}/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setEmail(res.data.email);
+      } catch (err) {
+        // ignore
+      }
+    };
+    fetchUser();
+  }, []);
 
   const handlePasswordChange = (e) => {
     const { name, value } = e.target;
-    setPasswordData({
-      ...passwordData,
-      [name]: value,
-    });
+    setPasswordData({ ...passwordData, [name]: value });
   };
 
   const handleChangePassword = async () => {
@@ -65,38 +71,25 @@ export default function Settings() {
           currentPassword: passwordData.currentPassword,
           newPassword: passwordData.newPassword,
         },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
 
       setSuccess("Password changed successfully!");
-      setPasswordData({
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: "",
-      });
+      setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
     } catch (err) {
       setError(err.response?.data?.message || "Failed to change password");
     }
   };
 
   const handleBackToProfile = () => {
-      navigate(`/profile/${localStorage.getItem("userId")}`);
+    const userId = localStorage.getItem("userId");
+    if (userId) navigate(`/profile/${userId}`);
+    else navigate("/home");
   };
 
   return (
     <Container component="main" maxWidth="sm">
       <Box sx={{ py: 4 }}>
-        {/* Dark Mode Toggle */}
-        <Box sx={{ position: "absolute", top: 20, right: 20 }}>
-          <IconButton onClick={toggleDarkMode} title={darkMode ? "Light Mode" : "Dark Mode"}>
-            {darkMode ? <Brightness7Icon /> : <Brightness4Icon />}
-          </IconButton>
-        </Box>
-
         {/* Back Button */}
         <Button
           startIcon={<ArrowBackIcon />}
@@ -121,14 +114,29 @@ export default function Settings() {
         )}
         {success && (
           <Box sx={{ mb: 2 }}>
-            <Typography color="success" variant="body2" sx={{ p: 2, bgcolor: "#e8f5e9", borderRadius: 1 }}>
+            <Typography color="success.main" variant="body2" sx={{ p: 2, bgcolor: "#e8f5e9", borderRadius: 1 }}>
               {success}
             </Typography>
           </Box>
         )}
 
-        {/* Change Password Section */}
+        {/* Account Info */}
         <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            Account
+          </Typography>
+          <Divider sx={{ mb: 3 }} />
+          <TextField
+            fullWidth
+            label="Email"
+            value={email}
+            disabled
+            variant="outlined"
+          />
+        </Paper>
+
+        {/* Change Password */}
+        <Paper elevation={2} sx={{ p: 3 }}>
           <Typography variant="h6" gutterBottom>
             Change Password
           </Typography>
@@ -170,22 +178,6 @@ export default function Settings() {
             >
               Change Password
             </Button>
-          </Box>
-        </Paper>
-
-        {/* Theme Settings */}
-        <Paper elevation={2} sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            Theme
-          </Typography>
-          <Divider sx={{ mb: 3 }} />
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <Typography variant="body1">
-              {darkMode ? "Dark Mode" : "Light Mode"}
-            </Typography>
-            <IconButton onClick={toggleDarkMode} color="primary">
-              {darkMode ? <Brightness7Icon /> : <Brightness4Icon />}
-            </IconButton>
           </Box>
         </Paper>
       </Box>

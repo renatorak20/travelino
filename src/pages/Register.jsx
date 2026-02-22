@@ -8,7 +8,7 @@ import { useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../config";
 import { useTheme } from "../context/ThemeContext";
 
-export default function Register() {
+export default function Register({ onLogin }) {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -26,8 +26,9 @@ export default function Register() {
         password,
       });
       localStorage.setItem("token", res.data.token);
-      localStorage.setItem("userId", res.data._id);
-      navigate(`/profile/${res.data._id}`);
+      localStorage.setItem("userId", res.data.user._id);
+      await onLogin();
+      navigate(`/profile/${res.data.user._id}`);
     } catch (err) {
       setError(err.response?.data?.message || "Registration failed");
     }

@@ -1,16 +1,20 @@
 import React, { useState, useEffect } from "react";
-import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { Routes, Route, useLocation } from "react-router-dom";
 import { Box } from "@mui/material";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import Home from "./pages/Home";
-// import Search from "./pages/Search";
 import Create from "./pages/Create";
 import Messages from "./pages/Messages";
+import Trips from "./pages/Trips";
+import TripDetail from "./pages/TripDetail";
+import CreateTrip from "./pages/CreateTrip";
+import NotFound from "./pages/NotFound";
+import Search from "./pages/Search";
 import Navigation from "./components/Navigation";
-import SearchDrawer from "./components/SearchDrawer";
+import ProtectedRoute from "./components/ProtectedRoute";
 import axios from "axios";
 import { API_BASE_URL } from "./config";
 
@@ -18,12 +22,10 @@ function App() {
   const location = useLocation();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isNavExpanded, setIsNavExpanded] = useState(true);
 
-  // Pages that should not show the navigation drawer
   const noNavPages = ["/login", "/register"];
-  const showNav = !noNavPages.includes(location.pathname);
+  const showNav = !noNavPages.includes(location.pathname) && !!user;
 
   useEffect(() => {
     fetchCurrentUser();
@@ -51,39 +53,47 @@ function App() {
     }
   };
 
+  const protect = (children) => (
+    <ProtectedRoute user={user} loading={loading}>
+      {children}
+    </ProtectedRoute>
+  );
+
   return (
-    <Box sx={{ display: "flex" }}>
+    <Box sx={{ display: "flex", height: "100vh", overflow: "hidden" }}>
       {showNav && (
-        <Navigation 
-          user={user} 
-          isSearchOpen={isSearchOpen}
-          setIsSearchOpen={setIsSearchOpen}
+        <Navigation
+          user={user}
           isExpanded={isNavExpanded}
           setIsExpanded={setIsNavExpanded}
         />
       )}
-      <SearchDrawer 
-        isOpen={isSearchOpen && isNavExpanded}
-        onClose={() => setIsSearchOpen(false)}
-      />
       <Box
         sx={{
           flex: 1,
           display: "flex",
           flexDirection: "column",
+          overflowY: "auto",
         }}
       >
         <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/home" element={<Home />} />
+          <Route path="/" element={protect(<Home />)} />
+          <Route path="/login" element={<Login onLogin={fetchCurrentUser} />} />
+          <Route path="/register" element={<Register onLogin={fetchCurrentUser} />} />
+          <Route path="/not-found" element={<NotFound />} />
 
-          <Route path="/create" element={<Create />} />
-          <Route path="/messages" element={<Messages />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/profile/:userId" element={<Profile />} />
-          <Route path="/settings" element={<Settings />} />
+          <Route path="/home" element={protect(<Home />)} />
+          <Route path="/create" element={protect(<Create />)} />
+          <Route path="/messages" element={protect(<Messages />)} />
+          <Route path="/search" element={protect(<Search />)} />
+          <Route path="/profile" element={protect(<Profile />)} />
+          <Route path="/profile/:userId" element={protect(<Profile />)} />
+          <Route path="/settings" element={protect(<Settings />)} />
+          <Route path="/trips" element={protect(<Trips />)} />
+          <Route path="/trips/:tripId" element={protect(<TripDetail />)} />
+          <Route path="/create-trip" element={protect(<CreateTrip />)} />
+
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </Box>
     </Box>

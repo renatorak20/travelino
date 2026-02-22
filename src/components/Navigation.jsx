@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Drawer,
   List,
@@ -10,7 +10,10 @@ import {
   IconButton,
   Divider,
   Tooltip,
+  Badge,
 } from "@mui/material";
+import axios from "axios";
+import { API_BASE_URL } from "../config";
 import { useNavigate, useLocation } from "react-router-dom";
 import HomeIcon from "@mui/icons-material/Home";
 import SearchIcon from "@mui/icons-material/Search";
@@ -20,26 +23,53 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import PersonIcon from "@mui/icons-material/Person";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import DarkModeIcon from "@mui/icons-material/DarkMode";
+import LightModeIcon from "@mui/icons-material/LightMode";
+import ExploreIcon from "@mui/icons-material/Explore";
+import { useTheme } from "../context/ThemeContext";
 
 const drawerWidthExpanded = 250;
 const drawerWidthCollapsed = 80;
 
-export default function Navigation({ user, isSearchOpen, setIsSearchOpen, isExpanded, setIsExpanded }) {
+export default function Navigation({ user, isExpanded, setIsExpanded }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { darkMode, toggleDarkMode } = useTheme();
   const [localExpanded, setLocalExpanded] = useState(isExpanded);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const pollRef = useRef(null);
+
+  // Poll unread message count every 30s
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    const fetchUnread = async () => {
+      try {
+        const res = await axios.get(`${API_BASE_URL}/messages/unread-count`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setUnreadCount(res.data.count || 0);
+      } catch {
+        // silent
+      }
+    };
+
+    fetchUnread();
+    pollRef.current = setInterval(fetchUnread, 30000);
+    return () => clearInterval(pollRef.current);
+  }, []);
+
+  // Clear badge when on the messages page
+  useEffect(() => {
+    if (location.pathname === "/messages") setUnreadCount(0);
+  }, [location.pathname]);
 
   const handleNavigation = (path) => {
-    if (path === "__search__drawer__") {
-      setIsSearchOpen(!isSearchOpen);
-    } else {
-      navigate(path);
-    }
+    navigate(path);
   };
 
-  const isActive = (path) => {
-    return location.pathname === path;
-  };
+  const isActive = (path) => location.pathname === path;
 
   const toggleDrawer = () => {
     setLocalExpanded(!localExpanded);
@@ -48,9 +78,18 @@ export default function Navigation({ user, isSearchOpen, setIsSearchOpen, isExpa
 
   const navItems = [
     { label: "Home", icon: <HomeIcon />, path: "/home" },
-    { label: "Search", icon: <SearchIcon />, path: "__search__drawer__" },
+    { label: "Search", icon: <SearchIcon />, path: "/search" },
     { label: "Create", icon: <AddCircleIcon />, path: "/create" },
-    { label: "Messages", icon: <MessageIcon />, path: "/messages" },
+    {
+      label: "Messages",
+      icon: (
+        <Badge badgeContent={unreadCount} color="error" max={9}>
+          <MessageIcon />
+        </Badge>
+      ),
+      path: "/messages",
+    },
+    { label: "Trips", icon: <ExploreIcon />, path: "/trips" },
   ];
 
   return (
@@ -119,25 +158,20 @@ export default function Navigation({ user, isSearchOpen, setIsSearchOpen, isExpa
           justifyContent: "flex-end",
         }}
       >
-        {/* Settings Icon Button - Circular */}
-        <Tooltip title={!localExpanded ? "Settings" : ""} placement="right">
-          <IconButton
-            onClick={() => handleNavigation("/settings")}
-            sx={{
-              width: 40,
-              height: 40,
-              borderRadius: "50%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              "&:hover": {
-                cursor: "pointer",
-              },
-            }}
-          >
-            <SettingsIcon />
-          </IconButton>
-        </Tooltip>
+        {/* Dark mode toggle + Settings — side by side when expanded, stacked when collapsed */}
+        <Box sx={{ display: "flex", gap: 1, flexDirection: localExpanded ? "row" : "column", alignItems: "center" }}>
+          <Tooltip title={darkMode ? "Light mode" : "Dark mode"} placement="right">
+            <IconButton onClick={toggleDarkMode} sx={{ width: 40, height: 40 }}>
+              {darkMode ? <LightModeIcon /> : <DarkModeIcon />}
+            </IconButton>
+          </Tooltip>
+
+          <Tooltip title={!localExpanded ? "Settings" : ""} placement="right">
+            <IconButton onClick={() => handleNavigation("/settings")} sx={{ width: 40, height: 40 }}>
+              <SettingsIcon />
+            </IconButton>
+          </Tooltip>
+        </Box>
 
         {/* Profile Section - Show Avatar Always */}
         <Tooltip
@@ -145,7 +179,7 @@ export default function Navigation({ user, isSearchOpen, setIsSearchOpen, isExpa
           placement="right"
         >
           <Box
-            onClick={() => handleNavigation(`/profile/${localStorage.getItem("userId")}`)}
+            onClick={() => { const id = user?._id; if (id) handleNavigation(`/profile/${id}`); }}
             sx={{
               display: "flex",
               alignItems: "center",

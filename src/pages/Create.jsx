@@ -32,6 +32,7 @@ export default function Create() {
   const [formData, setFormData] = useState({
     title: "",
     description: "",
+    location: "",
   });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -119,6 +120,7 @@ export default function Create() {
       const postFormData = new FormData();
       postFormData.append("title", formData.title);
       postFormData.append("description", formData.description);
+      postFormData.append("location", formData.location);
 
       images.forEach((image) => {
         postFormData.append("image", image);
@@ -133,7 +135,7 @@ export default function Create() {
 
       setSuccess("Post published successfully!");
       setTimeout(() => {
-        navigate("/profile");
+        navigate(`/profile/${localStorage.getItem("userId")}`);
       }, 2000);
     } catch (err) {
       setError(err.response?.data?.message || "Failed to create post");
@@ -186,6 +188,7 @@ export default function Create() {
               {/* Upload Area */}
               <Box
                 sx={{
+                  display: "block",
                   border: "2px dashed",
                   borderColor: "primary.main",
                   borderRadius: 2,
@@ -309,56 +312,58 @@ export default function Create() {
                 Post Details
               </Typography>
 
-              <Grid container spacing={3}>
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    label="Title"
-                    name="title"
-                    value={formData.title}
-                    onChange={handleFormChange}
-                    placeholder="Enter post title..."
-                    variant="outlined"
-                    required
-                    inputProps={{ maxLength: 100 }}
-                    helperText={`${formData.title.length}/100`}
-                  />
-                </Grid>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                <TextField
+                  fullWidth
+                  label="Title"
+                  name="title"
+                  value={formData.title}
+                  onChange={handleFormChange}
+                  placeholder="Enter post title..."
+                  variant="outlined"
+                  required
+                  inputProps={{ maxLength: 100 }}
+                  helperText={`${formData.title.length}/100`}
+                />
 
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    label="Description"
-                    name="description"
-                    value={formData.description}
-                    onChange={handleFormChange}
-                    placeholder="Describe your travel experience..."
-                    variant="outlined"
-                    multiline
-                    rows={6}
-                    inputProps={{ maxLength: 2000 }}
-                    helperText={`${formData.description.length}/2000`}
-                  />
-                </Grid>
+                <TextField
+                  fullWidth
+                  label="Location"
+                  name="location"
+                  value={formData.location}
+                  onChange={handleFormChange}
+                  placeholder="e.g. Dubrovnik, Croatia"
+                  variant="outlined"
+                  inputProps={{ maxLength: 100 }}
+                />
 
-                <Grid item xs={12}>
-                  <Box sx={{ display: "flex", gap: 2, justifyContent: "flex-end" }}>
-                    <Button
-                      variant="outlined"
-                      onClick={handleBack}
-                    >
-                      Back
-                    </Button>
-                    <Button
-                      variant="contained"
-                      onClick={handleNext}
-                      disabled={!formData.title.trim()}
-                    >
-                      Review
-                    </Button>
-                  </Box>
-                </Grid>
-              </Grid>
+                <TextField
+                  fullWidth
+                  label="Description"
+                  name="description"
+                  value={formData.description}
+                  onChange={handleFormChange}
+                  placeholder="Describe your travel experience..."
+                  variant="outlined"
+                  multiline
+                  rows={6}
+                  inputProps={{ maxLength: 2000 }}
+                  helperText={`${formData.description.length}/2000`}
+                />
+
+                <Box sx={{ display: "flex", gap: 2, justifyContent: "flex-end" }}>
+                  <Button variant="outlined" onClick={handleBack}>
+                    Back
+                  </Button>
+                  <Button
+                    variant="contained"
+                    onClick={handleNext}
+                    disabled={!formData.title.trim()}
+                  >
+                    Review
+                  </Button>
+                </Box>
+              </Box>
             </Box>
           )}
 
@@ -396,6 +401,11 @@ export default function Create() {
                 <Typography variant="h6" gutterBottom>
                   {formData.title}
                 </Typography>
+                {formData.location && (
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                    📍 {formData.location}
+                  </Typography>
+                )}
                 <Typography variant="body2" color="textSecondary" sx={{ whiteSpace: "pre-wrap" }}>
                   {formData.description}
                 </Typography>
