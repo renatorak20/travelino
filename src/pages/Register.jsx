@@ -5,8 +5,18 @@ import Brightness4Icon from "@mui/icons-material/Brightness4";
 import Brightness7Icon from "@mui/icons-material/Brightness7";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import { API_BASE_URL } from "../config";
 import { useTheme } from "../context/ThemeContext";
+
+const formVariants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.08, delayChildren: 0.1 } },
+};
+const fieldVariants = {
+  hidden: { opacity: 0, y: 16 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.3, ease: "easeOut" } },
+};
 
 export default function Register({ onLogin }) {
   const [username, setUsername] = useState("");
@@ -47,68 +57,86 @@ export default function Register({ onLogin }) {
           {darkMode ? <Brightness7Icon /> : <Brightness4Icon />}
         </IconButton>
       </Box>
-      <Box
-        sx={{
-          marginTop: 8,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-        }}
+      <motion.div
+        variants={formVariants}
+        initial="hidden"
+        animate="visible"
+        style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: 64, width: "100%" }}
       >
-        <Avatar sx={{ m: 1, bgcolor: "secondary.main" }}>
-          <PersonAddAltIcon />
-        </Avatar>
-        <Typography component="h1" variant="h5">
-          Register
-        </Typography>
-        <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
-          <TextField
-            margin="normal"
-            required
-            fullWidth
-            label="Username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-          />
-          <TextField
-            margin="normal"
-            required
-            fullWidth
-            label="Email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <TextField
-            margin="normal"
-            required
-            fullWidth
-            label="Password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          {error && (
-            <Typography color="error" variant="body2">
-              {error}
-            </Typography>
-          )}
-          <Button
-            type="submit"
-            fullWidth
-            variant="contained"
-            sx={{ mt: 3, mb: 2 }}
-          >
+        <motion.div variants={fieldVariants}>
+          <Avatar sx={{ m: 1, bgcolor: "secondary.main" }}>
+            <PersonAddAltIcon />
+          </Avatar>
+        </motion.div>
+        <motion.div variants={fieldVariants}>
+          <Typography component="h1" variant="h5">
             Register
-          </Button>
-          <Typography variant="body2" align="center">
-            Already have an account?{" "}
-            <Link href="/login" underline="hover">
-              Login
-            </Link>
           </Typography>
+        </motion.div>
+        <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1, width: "100%" }}>
+          <motion.div variants={fieldVariants}>
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              label="Username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+            />
+          </motion.div>
+          <motion.div variants={fieldVariants}>
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              label="Email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </motion.div>
+          <motion.div variants={fieldVariants}>
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              label="Password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </motion.div>
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <Typography color="error" variant="body2">
+                {error}
+              </Typography>
+            </motion.div>
+          )}
+          <motion.div variants={fieldVariants}>
+            <Button
+              type="submit"
+              fullWidth
+              variant="contained"
+              sx={{ mt: 3, mb: 2 }}
+            >
+              Register
+            </Button>
+          </motion.div>
+          <motion.div variants={fieldVariants}>
+            <Typography variant="body2" align="center">
+              Already have an account?{" "}
+              <Link href="/login" underline="hover">
+                Login
+              </Link>
+            </Typography>
+          </motion.div>
         </Box>
-      </Box>
+      </motion.div>
     </Container>
   );
 }

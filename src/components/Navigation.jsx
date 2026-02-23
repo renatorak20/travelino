@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Drawer,
   List,
@@ -27,6 +28,8 @@ import DarkModeIcon from "@mui/icons-material/DarkMode";
 import LightModeIcon from "@mui/icons-material/LightMode";
 import ExploreIcon from "@mui/icons-material/Explore";
 import { useTheme } from "../context/ThemeContext";
+
+const MotionBox = motion(Box);
 
 const drawerWidthExpanded = 250;
 const drawerWidthCollapsed = 80;
@@ -118,28 +121,69 @@ export default function Navigation({ user, isExpanded, setIsExpanded }) {
               title={!localExpanded ? item.label : ""}
               placement="right"
             >
-              <ListItem
-                onClick={() => handleNavigation(item.path)}
-                sx={{
-                  backgroundColor: isActive(item.path) ? "action.selected" : "transparent",
-                  "&:hover": {
-                    backgroundColor: "action.hover",
-                    cursor: "pointer",
-                  },
-                  justifyContent: localExpanded ? "flex-start" : "center",
-                  px: localExpanded ? 2 : 1,
-                }}
+              <motion.div
+                whileHover={{ x: 3 }}
+                whileTap={{ scale: 0.97 }}
+                transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                style={{ position: "relative" }}
               >
-                <ListItemIcon
+                {isActive(item.path) && (
+                  <MotionBox
+                    layoutId="activeNavPill"
+                    sx={{
+                      position: "absolute",
+                      inset: 0,
+                      borderRadius: 1.5,
+                      bgcolor: "action.selected",
+                      zIndex: 0,
+                    }}
+                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                  />
+                )}
+                <ListItem
+                  onClick={() => handleNavigation(item.path)}
                   sx={{
-                    minWidth: localExpanded ? 40 : "auto",
-                    justifyContent: "center",
+                    position: "relative",
+                    zIndex: 1,
+                    backgroundColor: "transparent",
+                    "&:hover": {
+                      backgroundColor: isActive(item.path) ? "transparent" : "action.hover",
+                      cursor: "pointer",
+                    },
+                    justifyContent: localExpanded ? "flex-start" : "center",
+                    px: localExpanded ? 2 : 1,
                   }}
                 >
-                  {item.icon}
-                </ListItemIcon>
-                {localExpanded && <ListItemText primary={item.label} />}
-              </ListItem>
+                  <ListItemIcon
+                    sx={{
+                      minWidth: localExpanded ? 40 : "auto",
+                      justifyContent: "center",
+                      color: isActive(item.path) ? "primary.main" : "inherit",
+                      transition: "color 0.2s",
+                    }}
+                  >
+                    {item.icon}
+                  </ListItemIcon>
+                  <AnimatePresence>
+                    {localExpanded && (
+                      <motion.div
+                        initial={{ opacity: 0, x: -8 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -8 }}
+                        transition={{ duration: 0.15 }}
+                        style={{ overflow: "hidden" }}
+                      >
+                        <ListItemText
+                          primary={item.label}
+                          primaryTypographyProps={{
+                            fontWeight: isActive(item.path) ? 600 : 400,
+                          }}
+                        />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </ListItem>
+              </motion.div>
             </Tooltip>
           ))}
         </List>

@@ -25,9 +25,20 @@ import PeopleOutlineIcon from "@mui/icons-material/PeopleOutline";
 import PlaceIcon from "@mui/icons-material/Place";
 import SendIcon from "@mui/icons-material/Send";
 import NearMeOutlinedIcon from "@mui/icons-material/NearMeOutlined";
+import { motion, AnimatePresence } from "framer-motion";
+import toast from "react-hot-toast";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../config";
+
+const containerVariants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.07 } },
+};
+const cardVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" } },
+};
 
 const SUGGEST_EVERY = 4;
 
@@ -153,6 +164,8 @@ export default function Home() {
       const res = await axios.put(`${API_BASE_URL}/users/${userId}/follow`, {}, { headers });
       const updatedFollowers = res.data.followers || [];
       const nowFollowing = updatedFollowers.map(String).includes(String(myId));
+      const userObj = allUsersRef.current.find((u) => String(u._id) === String(userId));
+      toast.success(nowFollowing ? `Now following ${userObj?.username || "user"}` : `Unfollowed ${userObj?.username || "user"}`);
       setFollowingSet((prev) => {
         const next = new Set(prev);
         if (nowFollowing) next.add(String(userId));
@@ -262,6 +275,7 @@ export default function Home() {
       setFeedPosts(appendComment);
       setSelectedPost((prev) => ({ ...prev, comments: [...(prev.comments || []), newComment] }));
       setCommentText("");
+      toast.success("Comment posted!");
     } catch (err) {
       console.error("Comment error:", err);
     }
@@ -286,8 +300,10 @@ export default function Home() {
     setSharingSendingId(toUserId);
     try {
       const post = sharePostRef;
-      const text = `📸 Shared a post: "${post.title}"${post.location ? `  📍 ${post.location}` : ""}`;
-      await axios.post(`${API_BASE_URL}/messages`, { receiver: toUserId, text }, { headers });
+      const text = `📎 Shared a post`;
+      await axios.post(`${API_BASE_URL}/messages/${toUserId}`, { text, postId: post._id }, { headers });
+      const toUser = mutualFollowers.find((u) => String(u._id) === String(toUserId));
+      toast.success(`Sent to ${toUser?.username || "them"}!`);
       setShareDialogOpen(false);
       setSharePostRef(null);
     } catch (err) {
@@ -408,11 +424,23 @@ export default function Home() {
           <Typography color="text.secondary">No posts yet from people you follow.</Typography>
         </Box>
       ) : (
-        <Grid container spacing={3} alignItems="stretch">
+        <Grid
+          container spacing={3} alignItems="stretch"
+          component={motion.div}
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+        >
           {feedPosts.map((post, index) => (
             <React.Fragment key={post._id}>
               {/* ── Post card ─────────────────────────────────────────── */}
               <Grid item xs={12}>
+                <motion.div
+                  variants={cardVariants}
+                  whileHover={{ y: -4 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                  style={{ height: "100%" }}
+                >
                 <Card
                   elevation={2}
                   sx={{
@@ -499,13 +527,25 @@ export default function Home() {
 
                     {/* Like / comment / share row pinned to bottom */}
                     <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: "auto", pt: 1 }}>
-                      <IconButton
-                        size="small"
-                        color={isPostLiked(post) ? "error" : "default"}
-                        onClick={() => handleLike(post._id)}
-                      >
-                        {isPostLiked(post) ? <FavoriteIcon fontSize="small" /> : <FavoriteBorderIcon fontSize="small" />}
-                      </IconButton>
+                      <motion.div whileTap={{ scale: 1.35 }} transition={{ type: "spring", stiffness: 500, damping: 15 }}>
+                        <IconButton
+                          size="small"
+                          color={isPostLiked(post) ? "error" : "default"}
+                          onClick={() => handleLike(post._id)}
+                        >
+                          <AnimatePresence mode="wait" initial={false}>
+                            {isPostLiked(post) ? (
+                              <motion.div key="liked" initial={{ scale: 0, rotate: -20 }} animate={{ scale: 1, rotate: 0 }} exit={{ scale: 0 }} transition={{ type: "spring", stiffness: 500, damping: 15 }}>
+                                <FavoriteIcon fontSize="small" />
+                              </motion.div>
+                            ) : (
+                              <motion.div key="unliked" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} transition={{ type: "spring", stiffness: 500, damping: 15 }}>
+                                <FavoriteBorderIcon fontSize="small" />
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </IconButton>
+                      </motion.div>
                       <Typography variant="body2" sx={{ mr: 0.5 }}>{post.likes?.length || 0}</Typography>
 
                       <IconButton size="small" onClick={() => handleOpenModal(post)}>
@@ -525,6 +565,7 @@ export default function Home() {
                     </Box>
                   </CardContent>
                 </Card>
+                </motion.div>
               </Grid>
 
               {/* ── Suggested person after every Nth post — full width ─── */}
@@ -534,6 +575,7 @@ export default function Home() {
                 const isLoadingFollow = followLoadingIds.has(u._id);
                 return (
                   <Grid item xs={12} key={`suggest-${index}`}>
+                    <motion.div variants={cardVariants}>
                     <Card
                       elevation={0}
                       sx={{ border: "1px solid", borderColor: "divider", bgcolor: "action.hover" }}
@@ -570,6 +612,7 @@ export default function Home() {
                         </Box>
                       </CardContent>
                     </Card>
+                    </motion.div>
                   </Grid>
                 );
               })()}
@@ -683,14 +726,26 @@ export default function Home() {
                   )}
                   {/* Like + share inline */}
                   <Box sx={{ display: "flex", alignItems: "center", mt: 1.25 }}>
-                    <IconButton
-                      size="small"
-                      color={isPostLiked(selectedPost) ? "error" : "default"}
-                      onClick={() => handleLike(selectedPost._id)}
-                      sx={{ ml: -0.75 }}
-                    >
-                      {isPostLiked(selectedPost) ? <FavoriteIcon fontSize="small" /> : <FavoriteBorderIcon fontSize="small" />}
-                    </IconButton>
+                    <motion.div whileTap={{ scale: 1.35 }} transition={{ type: "spring", stiffness: 500, damping: 15 }}>
+                      <IconButton
+                        size="small"
+                        color={isPostLiked(selectedPost) ? "error" : "default"}
+                        onClick={() => handleLike(selectedPost._id)}
+                        sx={{ ml: -0.75 }}
+                      >
+                        <AnimatePresence mode="wait" initial={false}>
+                          {isPostLiked(selectedPost) ? (
+                            <motion.div key="liked" initial={{ scale: 0, rotate: -20 }} animate={{ scale: 1, rotate: 0 }} exit={{ scale: 0 }} transition={{ type: "spring", stiffness: 500, damping: 15 }}>
+                              <FavoriteIcon fontSize="small" />
+                            </motion.div>
+                          ) : (
+                            <motion.div key="unliked" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} transition={{ type: "spring", stiffness: 500, damping: 15 }}>
+                              <FavoriteBorderIcon fontSize="small" />
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </IconButton>
+                    </motion.div>
                     <Typography variant="body2" color="text.secondary">
                       {selectedPost.likes?.length || 0} {selectedPost.likes?.length === 1 ? "like" : "likes"}
                     </Typography>

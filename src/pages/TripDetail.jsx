@@ -29,12 +29,35 @@ import SendIcon from "@mui/icons-material/Send";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
+import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import axios from "axios";
 import { useNavigate, useParams } from "react-router-dom";
 import { API_BASE_URL } from "../config";
 import { useTheme } from "../context/ThemeContext";
 
 const POLL_INTERVAL = 5000;
+
+const URL_REGEX = /(https?:\/\/[^\s]+)/g;
+
+const renderMessageText = (text) => {
+  const parts = text.split(URL_REGEX);
+  return parts.map((part, i) =>
+    URL_REGEX.test(part) ? (
+      <a
+        key={i}
+        href={part}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{ color: "inherit", textDecorationColor: "currentcolor" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {part}
+      </a>
+    ) : (
+      part
+    )
+  );
+};
 
 const STATUS_COLOR = { planning: "info", ongoing: "success", completed: "default" };
 
@@ -76,6 +99,11 @@ export default function TripDetail() {
   const [msgLoading, setMsgLoading] = useState(false);
   const [messageText, setMessageText] = useState("");
   const [sending, setSending] = useState(false);
+
+  // AI assistant
+  const [aiDialogOpen, setAiDialogOpen] = useState(false);
+  const [aiQuestion, setAiQuestion] = useState("");
+  const [aiAsking, setAiAsking] = useState(false);
 
   // Status edit
   const [editStatusOpen, setEditStatusOpen] = useState(false);
@@ -186,6 +214,45 @@ export default function TripDetail() {
       setMessageText(text);
     }
     setSending(false);
+  };
+
+  // ── Ask AI ────────────────────────────────────────────────────────────────
+  const handleAskAI = async () => {
+    if (!aiQuestion.trim()) return;
+    const question = aiQuestion.trim();
+    setAiAsking(true);
+    setAiDialogOpen(false);
+    setAiQuestion("");
+
+    // Optimistic local placeholder while waiting
+    const optimisticId = `ai-q-${Date.now()}`;
+    setMessages((prev) => [...prev, {
+      _id: optimisticId,
+      sender: { _id: myId, username: "You" },
+      text: question,
+      createdAt: new Date().toISOString(),
+      optimistic: true,
+    }]);
+
+    try {
+      const res = await axios.post(
+        `${API_BASE_URL}/ai/ask-trip`,
+        { tripId, question },
+        { headers }
+      );
+      const { userMessage, aiMessage } = res.data;
+      // Replace optimistic with real saved messages
+      setMessages((prev) => [
+        ...prev.filter((m) => m._id !== optimisticId),
+        userMessage,
+        aiMessage,
+      ]);
+      lastMessageAtRef.current = aiMessage.createdAt;
+    } catch (err) {
+      console.error("AI ask error:", err);
+      setMessages((prev) => prev.filter((m) => m._id !== optimisticId));
+    }
+    setAiAsking(false);
   };
 
   // ── Join / Leave ──────────────────────────────────────────────────────────
@@ -462,6 +529,20 @@ export default function TripDetail() {
           <Typography variant="subtitle1" fontWeight="bold">
             Group Chat
           </Typography>
+          {isMember && (
+            <Tooltip title="Ask AI travel assistant">
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={aiAsking ? <CircularProgress size={14} /> : <AutoAwesomeIcon fontSize="small" />}
+                onClick={() => setAiDialogOpen(true)}
+                disabled={aiAsking}
+                sx={{ ml: 1 }}
+              >
+                {aiAsking ? "Thinking…" : "Ask AI"}
+              </Button>
+            </Tooltip>
+          )}
           <AvatarGroup
             max={4}
             sx={{ ml: "auto", "& .MuiAvatar-root": { width: 24, height: 24, fontSize: "0.65rem" } }}
@@ -530,6 +611,7 @@ export default function TripDetail() {
                   }
                   const msg = item.data;
                   const isMine = String(msg.sender?._id) === String(myId);
+                  const isAIMsg = msg.isAI === true;
                   return (
                     <Box
                       key={msg._id}
@@ -544,23 +626,31 @@ export default function TripDetail() {
                       {!isMine && (
                         <Tooltip title={msg.sender?.username}>
                           <Avatar
-                            src={msg.sender?.avatar}
-                            sx={{ width: 28, height: 28, cursor: "pointer", flexShrink: 0 }}
-                            onClick={() => navigate(`/profile/${msg.sender?._id}`)}
+                            src={isAIMsg ? undefined : msg.sender?.avatar}
+                            sx={{
+                              width: 28, height: 28, flexShrink: 0,
+                              cursor: isAIMsg ? "default" : "pointer",
+                              bgcolor: isAIMsg ? "secondary.main" : undefined,
+                            }}
+                            onClick={isAIMsg ? undefined : () => navigate(`/profile/${msg.sender?._id}`)}
                           >
-                            {!msg.sender?.avatar && <PersonIcon sx={{ fontSize: 16 }} />}
+                            {isAIMsg
+                              ? <AutoAwesomeIcon sx={{ fontSize: 14 }} />
+                              : !msg.sender?.avatar && <PersonIcon sx={{ fontSize: 16 }} />
+                            }
                           </Avatar>
                         </Tooltip>
                       )}
 
-                      <Box sx={{ maxWidth: "65%", display: "flex", flexDirection: "column", alignItems: isMine ? "flex-end" : "flex-start" }}>
+                      <Box sx={{ maxWidth: "70%", display: "flex", flexDirection: "column", alignItems: isMine ? "flex-end" : "flex-start" }}>
                         {/* Sender name (only for others) */}
                         {!isMine && (
                           <Typography
                             variant="caption"
-                            color="text.secondary"
-                            sx={{ mb: 0.25, ml: 0.5, cursor: "pointer", "&:hover": { textDecoration: "underline" } }}
-                            onClick={() => navigate(`/profile/${msg.sender?._id}`)}
+                            color={isAIMsg ? "secondary.main" : "text.secondary"}
+                            fontWeight={isAIMsg ? "bold" : "normal"}
+                            sx={{ mb: 0.25, ml: 0.5, cursor: isAIMsg ? "default" : "pointer", "&:hover": { textDecoration: isAIMsg ? "none" : "underline" } }}
+                            onClick={isAIMsg ? undefined : () => navigate(`/profile/${msg.sender?._id}`)}
                           >
                             {msg.sender?.username}
                           </Typography>
@@ -570,12 +660,21 @@ export default function TripDetail() {
                             px: 1.5,
                             py: 1,
                             borderRadius: isMine ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
-                            bgcolor: isMine ? "primary.main" : darkMode ? "grey.800" : "grey.200",
-                            color: isMine ? "primary.contrastText" : darkMode ? "grey.100" : "text.primary",
+                            bgcolor: isAIMsg
+                              ? darkMode ? "secondary.dark" : "secondary.50"
+                              : isMine
+                              ? "primary.main"
+                              : darkMode ? "grey.800" : "grey.200",
+                            color: isAIMsg
+                              ? darkMode ? "white" : "secondary.dark"
+                              : isMine ? "primary.contrastText"
+                              : darkMode ? "grey.100" : "text.primary",
+                            border: isAIMsg ? "1px solid" : "none",
+                            borderColor: isAIMsg ? "secondary.main" : "transparent",
                             opacity: msg.optimistic ? 0.6 : 1,
                           }}
                         >
-                          <Typography variant="body2">{msg.text}</Typography>
+                          <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{renderMessageText(msg.text)}</Typography>
                           <Typography
                             variant="caption"
                             sx={{ display: "block", textAlign: "right", mt: 0.25, opacity: 0.7, fontSize: "0.65rem" }}
@@ -627,6 +726,43 @@ export default function TripDetail() {
           </>
         )}
       </Box>
+
+      {/* ── Ask AI dialog ─────────────────────────────────────────────────── */}
+      <Dialog open={aiDialogOpen} onClose={() => setAiDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <AutoAwesomeIcon color="secondary" />
+          Ask AI Travel Assistant
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Ask anything about {trip.destination || "your destination"} — packing tips, best spots, weather, local customs…
+          </Typography>
+          <TextField
+            autoFocus
+            fullWidth
+            multiline
+            rows={3}
+            placeholder={`e.g. What should we pack for ${trip.destination || "this trip"}?`}
+            value={aiQuestion}
+            onChange={(e) => setAiQuestion(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleAskAI(); }
+            }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => { setAiDialogOpen(false); setAiQuestion(""); }}>Cancel</Button>
+          <Button
+            variant="contained"
+            color="secondary"
+            onClick={handleAskAI}
+            disabled={!aiQuestion.trim()}
+            startIcon={<AutoAwesomeIcon />}
+          >
+            Ask
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* ── Edit status dialog ─────────────────────────────────────────────── */}
       <Dialog open={editStatusOpen} onClose={() => setEditStatusOpen(false)}>

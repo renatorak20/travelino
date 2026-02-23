@@ -1,4 +1,15 @@
 import React, { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+
+const listVariants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.05 } },
+};
+const itemVariants = {
+  hidden: { opacity: 0, x: -16 },
+  visible: { opacity: 1, x: 0, transition: { duration: 0.22, ease: "easeOut" } },
+  exit: { opacity: 0, x: -16, transition: { duration: 0.15 } },
+};
 import { useNavigate } from "react-router-dom";
 import {
   Drawer,
@@ -129,43 +140,57 @@ export default function SearchDrawer({ isOpen, onClose }) {
           )}
 
           {!loading && searchResults.length > 0 && (
-            <List sx={{ p: 0 }}>
-              {searchResults.map((user) => (
-                <ListItem
-                  key={user._id}
-                  sx={{
-                    mb: 1,
-                    borderRadius: 1,
-                    cursor: "pointer",
-                    "&:hover": {
-                      backgroundColor: "action.hover",
-                    },
-                  }}
-                  onClick={() => {
-                    onClose();
-                    navigate(`/profile/${user._id}`);
-                  }}
-                >
-                  <ListItemAvatar>
-                    <Avatar src={user.avatar} sx={{ width: 40, height: 40 }}>
-                      {!user.avatar && <PersonIcon />}
-                    </Avatar>
-                  </ListItemAvatar>
-                  <ListItemText
-                    primary={user.username}
-                    secondary={`@${user.username}`}
-                    primaryTypographyProps={{
-                      noWrap: true,
-                      variant: "body2",
-                    }}
-                    secondaryTypographyProps={{
-                      noWrap: true,
-                      variant: "caption",
-                    }}
-                  />
-                </ListItem>
-              ))}
-            </List>
+            <motion.div
+              variants={listVariants}
+              initial="hidden"
+              animate="visible"
+            >
+              <List sx={{ p: 0 }}>
+                <AnimatePresence>
+                  {searchResults.map((user) => (
+                    <motion.div
+                      key={user._id}
+                      variants={itemVariants}
+                      exit="exit"
+                      layout
+                    >
+                      <ListItem
+                        sx={{
+                          mb: 1,
+                          borderRadius: 1,
+                          cursor: "pointer",
+                          "&:hover": {
+                            backgroundColor: "action.hover",
+                          },
+                        }}
+                        onClick={() => {
+                          onClose();
+                          navigate(`/profile/${user._id}`);
+                        }}
+                      >
+                        <ListItemAvatar>
+                          <Avatar src={user.avatar} sx={{ width: 40, height: 40 }}>
+                            {!user.avatar && <PersonIcon />}
+                          </Avatar>
+                        </ListItemAvatar>
+                        <ListItemText
+                          primary={user.username}
+                          secondary={`@${user.username}`}
+                          primaryTypographyProps={{
+                            noWrap: true,
+                            variant: "body2",
+                          }}
+                          secondaryTypographyProps={{
+                            noWrap: true,
+                            variant: "caption",
+                          }}
+                        />
+                      </ListItem>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </List>
+            </motion.div>
           )}
 
           {!hasSearched && searchResults.length === 0 && (

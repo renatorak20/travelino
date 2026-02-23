@@ -21,6 +21,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import AddPhotoAlternateIcon from "@mui/icons-material/AddPhotoAlternate";
 import CancelIcon from "@mui/icons-material/Cancel";
 import PublishIcon from "@mui/icons-material/Publish";
+import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../config";
@@ -38,6 +39,7 @@ export default function Create() {
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
+  const [aiCaptionLoading, setAiCaptionLoading] = useState(false);
   const navigate = useNavigate();
 
   const steps = ["Upload Images", "Post Details", "Review & Publish"];
@@ -141,6 +143,27 @@ export default function Create() {
       setError(err.response?.data?.message || "Failed to create post");
       setLoading(false);
     }
+  };
+
+  const handleSuggestCaption = async () => {
+    if (!formData.title.trim()) {
+      setError("Enter a title first so AI knows what your post is about");
+      return;
+    }
+    setError("");
+    setAiCaptionLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.post(
+        `${API_BASE_URL}/ai/caption`,
+        { title: formData.title, location: formData.location },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setFormData((prev) => ({ ...prev, description: res.data.caption }));
+    } catch (err) {
+      setError("Failed to generate caption. Please try again.");
+    }
+    setAiCaptionLoading(false);
   };
 
   const handleCancel = () => {
@@ -337,19 +360,32 @@ export default function Create() {
                   inputProps={{ maxLength: 100 }}
                 />
 
-                <TextField
-                  fullWidth
-                  label="Description"
-                  name="description"
-                  value={formData.description}
-                  onChange={handleFormChange}
-                  placeholder="Describe your travel experience..."
-                  variant="outlined"
-                  multiline
-                  rows={6}
-                  inputProps={{ maxLength: 2000 }}
-                  helperText={`${formData.description.length}/2000`}
-                />
+                <Box>
+                  <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
+                    <Typography variant="body2" color="text.secondary">Description</Typography>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={aiCaptionLoading ? <CircularProgress size={14} /> : <AutoAwesomeIcon fontSize="small" />}
+                      onClick={handleSuggestCaption}
+                      disabled={aiCaptionLoading || !formData.title.trim()}
+                    >
+                      {aiCaptionLoading ? "Generating…" : "Suggest with AI"}
+                    </Button>
+                  </Box>
+                  <TextField
+                    fullWidth
+                    name="description"
+                    value={formData.description}
+                    onChange={handleFormChange}
+                    placeholder="Describe your travel experience…"
+                    variant="outlined"
+                    multiline
+                    rows={6}
+                    inputProps={{ maxLength: 2000 }}
+                    helperText={`${formData.description.length}/2000`}
+                  />
+                </Box>
 
                 <Box sx={{ display: "flex", gap: 2, justifyContent: "flex-end" }}>
                   <Button variant="outlined" onClick={handleBack}>

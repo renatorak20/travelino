@@ -24,9 +24,20 @@ import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import PeopleIcon from "@mui/icons-material/People";
 import ExploreOutlinedIcon from "@mui/icons-material/ExploreOutlined";
 import PersonIcon from "@mui/icons-material/Person";
+import { motion } from "framer-motion";
+import toast from "react-hot-toast";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../config";
+
+const containerVariants = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.06 } },
+};
+const cardVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" } },
+};
 
 const STATUS_TABS = ["all", "planning", "ongoing", "completed"];
 
@@ -106,12 +117,15 @@ export default function Trips() {
 
   const handleJoinLeave = async (e, trip) => {
     e.stopPropagation();
+    const wasAlreadyMember = isMember(trip);
     setJoiningId(trip._id);
     try {
       const res = await axios.put(`${API_BASE_URL}/trips/${trip._id}/join`, {}, { headers });
       setTrips((prev) => prev.map((t) => (t._id === trip._id ? res.data : t)));
+      toast.success(wasAlreadyMember ? `Left "${trip.title}"` : `Joined "${trip.title}"!`);
     } catch (err) {
       console.error("Join/leave error:", err);
+      toast.error("Something went wrong");
     }
     setJoiningId(null);
   };
@@ -122,6 +136,7 @@ export default function Trips() {
   // ── Skeleton loading ─────────────────────────────────────────────────────
   if (loading) {
     return (
+      <Box sx={{ height: "100%", overflowY: "auto" }}>
       <Container maxWidth="lg" sx={{ py: 4 }}>
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
           <Skeleton variant="text" width={160} height={44} />
@@ -158,10 +173,12 @@ export default function Trips() {
           ))}
         </Grid>
       </Container>
+      </Box>
     );
   }
 
   return (
+    <Box sx={{ height: "100%", overflowY: "auto" }}>
     <Container maxWidth="lg" sx={{ py: 4 }}>
       {/* Header */}
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
@@ -197,7 +214,13 @@ export default function Trips() {
         </Box>
       ) : (
         <>
-          <Grid container spacing={3}>
+          <Grid
+            container spacing={3}
+            component={motion.div}
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+          >
             {trips.map((trip) => {
               const amMember = isMember(trip);
               const amCreator = isCreator(trip);
@@ -207,6 +230,12 @@ export default function Trips() {
 
               return (
                 <Grid item xs={12} sm={6} md={4} key={trip._id}>
+                  <motion.div
+                    variants={cardVariants}
+                    whileHover={{ y: -4 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                    style={{ height: "100%" }}
+                  >
                   <Card
                     elevation={2}
                     sx={{
@@ -338,6 +367,7 @@ export default function Trips() {
                       )}
                     </CardActions>
                   </Card>
+                  </motion.div>
                 </Grid>
               );
             })}
@@ -352,5 +382,6 @@ export default function Trips() {
         </>
       )}
     </Container>
+    </Box>
   );
 }
