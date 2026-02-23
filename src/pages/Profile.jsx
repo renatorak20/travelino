@@ -23,6 +23,7 @@ import {
   Tabs,
   Tab,
   Chip,
+  Divider,
 } from "@mui/material";
 import PlaceIcon from "@mui/icons-material/Place";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
@@ -33,6 +34,8 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import CameraAltIcon from "@mui/icons-material/CameraAlt";
+import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
+import CollectionsIcon from "@mui/icons-material/Collections";
 import SendIcon from "@mui/icons-material/Send";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -611,38 +614,85 @@ const handleLikePost = async (postId) => {
                 <Typography>No posts yet.</Typography>
               </Paper>
             ) : (
-              <Grid container spacing={3}>
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(3, 1fr)",
+                  gap: "3px",
+                }}
+              >
                 {posts.map((post) => (
-                  <Grid item xs={12} sm={6} md={4} key={post._id}>
-                    <Card
-                      onClick={() => handleOpenPostModal(post)}
-                      sx={{ cursor: "pointer", "&:hover": { transform: "scale(1.01)" } }}
+                  <Box
+                    key={post._id}
+                    onClick={() => handleOpenPostModal(post)}
+                    sx={{
+                      position: "relative",
+                      cursor: "pointer",
+                      aspectRatio: "1 / 1",
+                      overflow: "hidden",
+                      bgcolor: "action.hover",
+                      "&:hover .hover-overlay": { opacity: 1 },
+                    }}
+                  >
+                    {/* Image */}
+                    {post.image?.length > 0 ? (
+                      <Box
+                        component="img"
+                        src={post.image[0]}
+                        alt=""
+                        sx={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                      />
+                    ) : (
+                      <Box
+                        sx={{
+                          width: "100%", height: "100%",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                        }}
+                      >
+                        <CameraAltIcon sx={{ fontSize: 40, color: "text.disabled" }} />
+                      </Box>
+                    )}
+
+                    {/* Hover overlay — likes + comments */}
+                    <Box
+                      className="hover-overlay"
+                      sx={{
+                        position: "absolute",
+                        inset: 0,
+                        bgcolor: "rgba(0,0,0,0.45)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 3,
+                        opacity: 0,
+                        transition: "opacity 0.18s",
+                      }}
                     >
-                      {post.image?.length > 0 && (
-                        <CardMedia component="img" height="200" image={post.image[0]} />
-                      )}
-                      <CardContent>
-                        <Typography variant="h6" noWrap>{post.title}</Typography>
-                        {post.location && (
-                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.25 }}>
-                            <PlaceIcon sx={{ fontSize: 13, color: "text.secondary" }} />
-                            <Typography variant="caption" color="text.secondary" noWrap>
-                              {post.location}
-                            </Typography>
-                          </Box>
-                        )}
-                        <Typography variant="body2" color="textSecondary" noWrap>
-                          {post.description}
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                        <FavoriteIcon sx={{ fontSize: 22, color: "white" }} />
+                        <Typography variant="body2" fontWeight="bold" sx={{ color: "white" }}>
+                          {post.likes?.length || 0}
                         </Typography>
-                        <Box sx={{ display: "flex", gap: 1, mt: 2 }}>
-                          <FavoriteBorderIcon fontSize="small" />
-                          <Typography>{post?.likes?.length || 0} Likes</Typography>
-                        </Box>
-                      </CardContent>
-                    </Card>
-                  </Grid>
+                      </Box>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                        <ChatBubbleOutlineIcon sx={{ fontSize: 22, color: "white" }} />
+                        <Typography variant="body2" fontWeight="bold" sx={{ color: "white" }}>
+                          {post.comments?.length || 0}
+                        </Typography>
+                      </Box>
+                    </Box>
+
+                    {/* Multi-image badge */}
+                    {post.image?.length > 1 && (
+                      <Box sx={{ position: "absolute", top: 6, right: 6, lineHeight: 0 }}>
+                        <CollectionsIcon
+                          sx={{ fontSize: 20, color: "white", filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.7))" }}
+                        />
+                      </Box>
+                    )}
+                  </Box>
                 ))}
-              </Grid>
+              </Box>
             )}
           </Box>
         )}
@@ -714,90 +764,115 @@ const handleLikePost = async (postId) => {
       </Box>
 
       {/* POST MODAL */}
-      <Dialog open={!!selectedPost} onClose={handleClosePostModal} maxWidth="lg" fullWidth>
-        <DialogContent sx={{ p: 0, display: "flex", height: "600px" }}>
+      <Dialog open={!!selectedPost} onClose={handleClosePostModal} maxWidth="xl" fullWidth>
+        <DialogContent sx={{ p: 0, display: "flex", height: "88vh" }}>
           {selectedPost && (
             <>
-              {/* Left image */}
+              {/* Left: image */}
               <Box
                 sx={{
-                  flex: 1,
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  bgcolor: "#f5f5f5",
-                  position: "relative",
+                  flex: 1, display: "flex", justifyContent: "center", alignItems: "center",
+                  bgcolor: "#111", position: "relative", minWidth: 0,
                 }}
               >
                 {selectedPost.image?.length > 0 ? (
                   <>
                     {modalImagesLoading ? (
-                      <CircularProgress size={48} />
+                      <CircularProgress sx={{ color: "white" }} />
                     ) : (
                       <img
                         src={selectedPost.image[currentImageIndex]}
                         alt=""
-                        style={{
-                          maxWidth: "100%",
-                          maxHeight: "100%",
-                          objectFit: "contain",
-                        }}
+                        style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }}
                       />
                     )}
-
                     {!modalImagesLoading && selectedPost.image.length > 1 && (
                       <>
-                        <IconButton
-                          onClick={handlePrevImage}
-                          sx={{
-                            position: "absolute",
-                            top: "50%",
-                            left: 10,
-                            bgcolor: "rgba(0,0,0,0.4)",
-                            color: "white",
-                          }}
-                        >
+                        <IconButton onClick={handlePrevImage}
+                          sx={{ position: "absolute", left: 8, top: "50%", bgcolor: "rgba(0,0,0,0.4)", color: "white" }}>
                           &lt;
                         </IconButton>
-
-                        <IconButton
-                          onClick={handleNextImage}
-                          sx={{
-                            position: "absolute",
-                            top: "50%",
-                            right: 10,
-                            bgcolor: "rgba(0,0,0,0.4)",
-                            color: "white",
-                          }}
-                        >
+                        <IconButton onClick={handleNextImage}
+                          sx={{ position: "absolute", right: 8, top: "50%", bgcolor: "rgba(0,0,0,0.4)", color: "white" }}>
                           &gt;
                         </IconButton>
                       </>
                     )}
                   </>
                 ) : (
-                  <Typography>No image available</Typography>
+                  <Typography sx={{ color: "white" }}>No image</Typography>
                 )}
               </Box>
 
-              {/* Right details */}
-              <Box sx={{ width: 350, display: "flex", flexDirection: "column" }}>
-                {/* Header */}
-                <Box sx={{ p: 2, borderBottom: "1px solid #ddd" }}>
+              {/* Right: details + comments */}
+              <Box sx={{ width: 420, display: "flex", flexDirection: "column", flexShrink: 0 }}>
+
+                {/* Author header */}
+                <Box
+                  sx={{
+                    display: "flex", alignItems: "center", gap: 1.5, px: 2.5, py: 2,
+                    borderBottom: "1px solid", borderColor: "divider",
+                  }}
+                >
+                  <Avatar
+                    src={selectedPost.author?.avatar}
+                    sx={{ width: 40, height: 40, cursor: "pointer" }}
+                    onClick={() => { handleClosePostModal(); navigate(`/profile/${selectedPost.author?._id}`); }}
+                  >
+                    {!selectedPost.author?.avatar && <PersonIcon />}
+                  </Avatar>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography
+                      variant="body2" fontWeight="bold"
+                      sx={{ cursor: "pointer", "&:hover": { textDecoration: "underline" } }}
+                      onClick={() => { handleClosePostModal(); navigate(`/profile/${selectedPost.author?._id}`); }}
+                    >
+                      {selectedPost.author?.username}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {new Date(selectedPost.createdAt).toLocaleDateString()}
+                    </Typography>
+                  </Box>
+                  {/* Edit / delete for own post */}
+                  {selectedPost.author?._id === myId && !editingPost && (
+                    <Box sx={{ display: "flex", alignItems: "center" }}>
+                      {confirmDeletePost ? (
+                        <>
+                          <Typography variant="caption" color="text.secondary" sx={{ mr: 1 }}>Delete?</Typography>
+                          <IconButton size="small" color="error" disabled={deletePostLoading} onClick={handleDeletePost}>
+                            {deletePostLoading ? <CircularProgress size={16} /> : <CheckIcon fontSize="small" />}
+                          </IconButton>
+                          <IconButton size="small" onClick={() => setConfirmDeletePost(false)}>
+                            <CloseIcon fontSize="small" />
+                          </IconButton>
+                        </>
+                      ) : (
+                        <>
+                          <IconButton size="small" onClick={() => {
+                            setEditPostData({ title: selectedPost.title, description: selectedPost.description || "" });
+                            setEditingPost(true);
+                          }}>
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton size="small" color="error" onClick={() => setConfirmDeletePost(true)}>
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </>
+                      )}
+                    </Box>
+                  )}
+                </Box>
+
+                {/* Title + location + description (or edit form) + like inline */}
+                <Box sx={{ px: 2.5, pt: 2, pb: 1.5, borderBottom: "1px solid", borderColor: "divider" }}>
                   {editingPost ? (
                     <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                      <TextField
-                        size="small"
-                        fullWidth
+                      <TextField size="small" fullWidth label="Title"
                         value={editPostData.title}
                         onChange={(e) => setEditPostData((p) => ({ ...p, title: e.target.value }))}
                         inputProps={{ maxLength: 100 }}
                       />
-                      <TextField
-                        size="small"
-                        fullWidth
-                        multiline
-                        rows={3}
+                      <TextField size="small" fullWidth multiline rows={3} label="Description"
                         value={editPostData.description}
                         onChange={(e) => setEditPostData((p) => ({ ...p, description: e.target.value }))}
                         inputProps={{ maxLength: 2000 }}
@@ -812,118 +887,62 @@ const handleLikePost = async (postId) => {
                       </Box>
                     </Box>
                   ) : (
-                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                      <Box>
-                        <Typography variant="h6">{selectedPost.title}</Typography>
-                        {selectedPost.location && (
-                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.25 }}>
-                            <PlaceIcon sx={{ fontSize: 13, color: "text.secondary" }} />
-                            <Typography variant="caption" color="text.secondary">
-                              {selectedPost.location}
-                            </Typography>
-                          </Box>
-                        )}
-                        <Typography variant="caption">
-                          {new Date(selectedPost.createdAt).toLocaleDateString()}
-                        </Typography>
-                      </Box>
-                      {selectedPost.author?._id === myId && (
-                        <Box sx={{ display: "flex", alignItems: "center" }}>
-                          {confirmDeletePost ? (
-                            <>
-                              <Typography variant="caption" sx={{ mr: 1 }}>Delete post?</Typography>
-                              <IconButton
-                                size="small"
-                                color="error"
-                                disabled={deletePostLoading}
-                                onClick={handleDeletePost}
-                              >
-                                {deletePostLoading ? <CircularProgress size={16} /> : <CheckIcon fontSize="small" />}
-                              </IconButton>
-                              <IconButton size="small" onClick={() => setConfirmDeletePost(false)}>
-                                <CloseIcon fontSize="small" />
-                              </IconButton>
-                            </>
-                          ) : (
-                            <>
-                              <IconButton
-                                size="small"
-                                onClick={() => {
-                                  setEditPostData({ title: selectedPost.title, description: selectedPost.description || "" });
-                                  setEditingPost(true);
-                                }}
-                              >
-                                <EditIcon fontSize="small" />
-                              </IconButton>
-                              <IconButton
-                                size="small"
-                                color="error"
-                                onClick={() => setConfirmDeletePost(true)}
-                              >
-                                <DeleteIcon fontSize="small" />
-                              </IconButton>
-                            </>
-                          )}
+                    <>
+                      {selectedPost.title && (
+                        <Typography variant="subtitle1" fontWeight="bold">{selectedPost.title}</Typography>
+                      )}
+                      {selectedPost.location && (
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.5 }}>
+                          <PlaceIcon sx={{ fontSize: 14, color: "text.secondary" }} />
+                          <Typography variant="caption" color="text.secondary">{selectedPost.location}</Typography>
                         </Box>
                       )}
-                    </Box>
+                      {selectedPost.description && (
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.6 }}>
+                          {selectedPost.description}
+                        </Typography>
+                      )}
+                      {/* Like inline */}
+                      <Box sx={{ display: "flex", alignItems: "center", mt: 1.25 }}>
+                        <IconButton
+                          size="small" sx={{ ml: -0.75 }}
+                          color={isPostLiked(selectedPost) ? "error" : "default"}
+                          onClick={() => handleLikePost(selectedPost._id)}
+                          disabled={likeLoading}
+                        >
+                          {isPostLiked(selectedPost) ? <FavoriteIcon fontSize="small" /> : <FavoriteBorderIcon fontSize="small" />}
+                        </IconButton>
+                        <Typography variant="body2" color="text.secondary">
+                          {selectedPost.likes?.length || 0} {selectedPost.likes?.length === 1 ? "like" : "likes"}
+                        </Typography>
+                      </Box>
+                    </>
                   )}
                 </Box>
 
-                {/* Description */}
-                {!editingPost && (
-                  <Box sx={{ p: 2, borderBottom: "1px solid #ddd", maxHeight: 150, overflowY: "auto" }}>
-                    {selectedPost.description}
-                  </Box>
-                )}
-
-                {/* Likes */}
-                <Box sx={{ p: 2, borderBottom: "1px solid #ddd" }}>
-                  <IconButton
-                    color={isPostLiked(selectedPost) ? "error" : "default"}
-                    onClick={() => handleLikePost(selectedPost._id)}
-                    disabled={likeLoading}
-                  >
-                    {isPostLiked(selectedPost) ? <FavoriteIcon /> : <FavoriteBorderIcon />}
-                  </IconButton>
-                  <Typography>{selectedPost?.likes?.length || 0} Likes</Typography>
-                </Box>
-
-                {/* Comments */}
-                <Box sx={{ flex: 1, overflowY: "auto", p: 2 }}>
-                  <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                    Comments
+                {/* Comments list */}
+                <Box sx={{ flex: 1, overflowY: "auto", px: 2.5, py: 1.5 }}>
+                  <Typography variant="subtitle2" color="text.secondary"
+                    sx={{ mb: 1.5, textTransform: "uppercase", fontSize: "0.7rem", letterSpacing: 0.8 }}>
+                    Comments ({selectedPost.comments?.length || 0})
                   </Typography>
 
                   {selectedPost.comments?.length > 0 ? (
-                    <List disablePadding>
-                      {selectedPost.comments.map((c) => (
+                    <Box sx={{ display: "flex", flexDirection: "column" }}>
+                      {selectedPost.comments.map((c, idx) => (
                         <Box key={c._id}>
-                          <ListItem alignItems="flex-start" disableGutters>
-                            <ListItemAvatar sx={{ minWidth: 40 }}>
-                              <Avatar
-                                src={c.author?.avatar}
-                                sx={{ width: 32, height: 32, cursor: "pointer" }}
-                                onClick={() => c.author?._id && navigate(`/profile/${c.author._id}`)}
-                              />
-                            </ListItemAvatar>
-                            <Box sx={{ flex: 1 }}>
-                              <Typography
-                                variant="body2"
-                                fontWeight="bold"
-                                sx={{ cursor: "pointer", display: "inline" }}
-                                onClick={() => c.author?._id && navigate(`/profile/${c.author._id}`)}
-                              >
-                                {c.author?.username || "User"}
-                              </Typography>
-
-                              {/* Inline edit or display text */}
+                          <Box sx={{ display: "flex", gap: 1.5, py: 1.5 }}>
+                            <Avatar
+                              src={c.author?.avatar}
+                              sx={{ width: 36, height: 36, flexShrink: 0, cursor: "pointer" }}
+                              onClick={() => c.author?._id && navigate(`/profile/${c.author._id}`)}
+                            >
+                              {!c.author?.avatar && <PersonIcon sx={{ fontSize: 18 }} />}
+                            </Avatar>
+                            <Box sx={{ flex: 1, minWidth: 0 }}>
                               {editingCommentId === c._id ? (
-                                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.5 }}>
-                                  <TextField
-                                    size="small"
-                                    fullWidth
-                                    value={editCommentText}
+                                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                                  <TextField size="small" fullWidth value={editCommentText}
                                     onChange={(e) => setEditCommentText(e.target.value)}
                                     onKeyDown={(e) => {
                                       if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleEditComment(c._id); }
@@ -938,39 +957,36 @@ const handleLikePost = async (postId) => {
                                   </IconButton>
                                 </Box>
                               ) : (
-                                <Typography variant="body2" sx={{ display: "inline", ml: 0.5 }}>
-                                  {c.text}
+                                <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.75, flexWrap: "wrap" }}>
+                                  <Typography variant="body2" fontWeight="bold"
+                                    sx={{ cursor: "pointer", "&:hover": { textDecoration: "underline" } }}
+                                    onClick={() => c.author?._id && navigate(`/profile/${c.author._id}`)}>
+                                    {c.author?.username || "User"}
+                                  </Typography>
+                                  <Typography variant="body2" sx={{ lineHeight: 1.5 }}>{c.text}</Typography>
+                                </Box>
+                              )}
+                              {c.createdAt && (
+                                <Typography variant="caption" color="text.disabled" sx={{ mt: 0.25, display: "block" }}>
+                                  {new Date(c.createdAt).toLocaleDateString()}
                                 </Typography>
                               )}
-
-                              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                                <Typography
-                                  variant="caption"
-                                  color="text.secondary"
+                              <Box sx={{ display: "flex", gap: 1, mt: 0.25 }}>
+                                <Typography variant="caption" color="text.secondary"
                                   sx={{ cursor: "pointer", "&:hover": { textDecoration: "underline" } }}
-                                  onClick={() => {
-                                    setReplyingToId(replyingToId === c._id ? null : c._id);
-                                    setReplyText("");
-                                  }}
-                                >
+                                  onClick={() => { setReplyingToId(replyingToId === c._id ? null : c._id); setReplyText(""); }}>
                                   Reply
                                 </Typography>
                                 {c.author?._id === myId && (
                                   <>
-                                    <Typography
-                                      variant="caption"
-                                      color="text.secondary"
+                                    <Typography variant="caption" color="text.secondary"
                                       sx={{ cursor: "pointer", "&:hover": { textDecoration: "underline" } }}
-                                      onClick={() => { setEditingCommentId(c._id); setEditCommentText(c.text); setReplyingToId(null); }}
-                                    >
+                                      onClick={() => { setEditingCommentId(c._id); setEditCommentText(c.text); setReplyingToId(null); }}>
                                       Edit
                                     </Typography>
-                                    <Typography
-                                      variant="caption"
-                                      color="error.main"
+                                    <Typography variant="caption" color="error.main"
                                       sx={{ cursor: "pointer", "&:hover": { textDecoration: "underline" } }}
-                                      onClick={() => handleDeleteComment(c._id)}
-                                    >
+                                      onClick={() => handleDeleteComment(c._id)}>
                                       Delete
                                     </Typography>
                                   </>
@@ -979,26 +995,23 @@ const handleLikePost = async (postId) => {
 
                               {/* Replies */}
                               {c.replies?.length > 0 && (
-                                <Box sx={{ mt: 0.5, pl: 1, borderLeft: "2px solid", borderColor: "divider" }}>
+                                <Box sx={{ mt: 1.25, display: "flex", flexDirection: "column", gap: 1.25 }}>
                                   {c.replies.map((r, ri) => (
-                                    <Box key={ri} sx={{ display: "flex", gap: 1, mb: 0.5 }}>
-                                      <Avatar
-                                        src={r.author?.avatar}
-                                        sx={{ width: 24, height: 24, cursor: "pointer", flexShrink: 0 }}
-                                        onClick={() => r.author?._id && navigate(`/profile/${r.author._id}`)}
-                                      />
-                                      <Box>
-                                        <Typography
-                                          variant="caption"
-                                          fontWeight="bold"
-                                          sx={{ cursor: "pointer" }}
-                                          onClick={() => r.author?._id && navigate(`/profile/${r.author._id}`)}
-                                        >
-                                          {r.author?.username || "User"}
-                                        </Typography>
-                                        <Typography variant="caption" sx={{ ml: 0.5 }}>
-                                          {r.text}
-                                        </Typography>
+                                    <Box key={ri} sx={{ display: "flex", gap: 1.25 }}>
+                                      <Avatar src={r.author?.avatar}
+                                        sx={{ width: 28, height: 28, flexShrink: 0, cursor: "pointer" }}
+                                        onClick={() => r.author?._id && navigate(`/profile/${r.author._id}`)}>
+                                        {!r.author?.avatar && <PersonIcon sx={{ fontSize: 14 }} />}
+                                      </Avatar>
+                                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                                        <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.75, flexWrap: "wrap" }}>
+                                          <Typography variant="body2" fontWeight="bold"
+                                            sx={{ fontSize: "0.8rem", cursor: "pointer", "&:hover": { textDecoration: "underline" } }}
+                                            onClick={() => r.author?._id && navigate(`/profile/${r.author._id}`)}>
+                                            {r.author?.username || "User"}
+                                          </Typography>
+                                          <Typography variant="body2" sx={{ fontSize: "0.8rem" }}>{r.text}</Typography>
+                                        </Box>
                                       </Box>
                                     </Box>
                                   ))}
@@ -1007,63 +1020,40 @@ const handleLikePost = async (postId) => {
 
                               {/* Reply input */}
                               {replyingToId === c._id && (
-                                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 0.5 }}>
-                                  <TextField
-                                    size="small"
-                                    fullWidth
-                                    value={replyText}
-                                    onChange={(e) => setReplyText(e.target.value)}
-                                    placeholder="Write a reply..."
-                                    onKeyDown={(e) => {
-                                      if (e.key === "Enter" && !e.shiftKey) {
-                                        e.preventDefault();
-                                        handleAddReply(c._id);
-                                      }
-                                    }}
+                                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 1 }}>
+                                  <TextField size="small" fullWidth placeholder="Write a reply…"
+                                    value={replyText} onChange={(e) => setReplyText(e.target.value)}
+                                    onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleAddReply(c._id); } }}
                                   />
-                                  <IconButton
-                                    size="small"
-                                    color="primary"
+                                  <IconButton size="small" color="primary"
                                     disabled={replyLoading || !replyText.trim()}
-                                    onClick={() => handleAddReply(c._id)}
-                                  >
+                                    onClick={() => handleAddReply(c._id)}>
                                     {replyLoading ? <CircularProgress size={16} /> : <SendIcon fontSize="small" />}
                                   </IconButton>
                                 </Box>
                               )}
                             </Box>
-                          </ListItem>
+                          </Box>
+                          {idx < selectedPost.comments.length - 1 && <Divider sx={{ opacity: 0.5 }} />}
                         </Box>
                       ))}
-                    </List>
+                    </Box>
                   ) : (
-                    <Typography>No comments yet.</Typography>
+                    <Box sx={{ textAlign: "center", py: 4 }}>
+                      <ChatBubbleOutlineIcon sx={{ fontSize: 36, color: "text.disabled", mb: 1 }} />
+                      <Typography variant="body2" color="text.secondary">No comments yet.</Typography>
+                      <Typography variant="caption" color="text.disabled">Be the first to comment!</Typography>
+                    </Box>
                   )}
                 </Box>
 
-                {/* Add Comment */}
-                <Box sx={{ p: 2, borderTop: "1px solid #ddd" }}>
-                  <TextField
-                    fullWidth
-                    multiline
-                    rows={2}
-                    value={commentText}
-                    onChange={(e) => setCommentText(e.target.value)}
-                    placeholder="Add a comment..."
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        handleAddComment();
-                      }
-                    }}
+                {/* Add comment */}
+                <Box sx={{ px: 2, py: 1.5, borderTop: "1px solid", borderColor: "divider", display: "flex", gap: 1, alignItems: "center" }}>
+                  <TextField fullWidth size="small" placeholder="Add a comment…"
+                    value={commentText} onChange={(e) => setCommentText(e.target.value)} multiline maxRows={3}
+                    onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleAddComment(); } }}
                   />
-
-                  <IconButton
-                    sx={{ mt: 1 }}
-                    color="primary"
-                    disabled={commentLoading || !commentText.trim()}
-                    onClick={handleAddComment}
-                  >
+                  <IconButton color="primary" disabled={commentLoading || !commentText.trim()} onClick={handleAddComment}>
                     {commentLoading ? <CircularProgress size={20} /> : <SendIcon />}
                   </IconButton>
                 </Box>

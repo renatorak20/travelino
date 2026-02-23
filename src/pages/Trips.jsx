@@ -58,6 +58,7 @@ export default function Trips() {
   const [page, setPage] = useState(1);
   const [activeTab, setActiveTab] = useState(0); // 0=all,1=planning,2=ongoing,3=completed
   const [joiningId, setJoiningId] = useState(null);
+  const sentinelRef = useRef(null);
 
   const fetchTrips = useCallback(
     async (pageNum, statusIdx, append = false) => {
@@ -85,12 +86,22 @@ export default function Trips() {
     fetchTrips(1, activeTab, false);
   }, [activeTab, fetchTrips]);
 
+  useEffect(() => {
+    if (!sentinelRef.current) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore) {
+          fetchTrips(page + 1, activeTab, true);
+        }
+      },
+      { threshold: 0.1 }
+    );
+    observer.observe(sentinelRef.current);
+    return () => observer.disconnect();
+  }, [hasMore, loadingMore, trips.length, page, activeTab, fetchTrips]);
+
   const handleTabChange = (_, newVal) => {
     setActiveTab(newVal);
-  };
-
-  const handleLoadMore = () => {
-    if (!loadingMore && hasMore) fetchTrips(page + 1, activeTab, true);
   };
 
   const handleJoinLeave = async (e, trip) => {
@@ -120,14 +131,26 @@ export default function Trips() {
         <Grid container spacing={3}>
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <Grid item xs={12} sm={6} md={4} key={i}>
-              <Card elevation={2}>
-                <Skeleton variant="rectangular" height={180} />
-                <CardContent>
-                  <Skeleton variant="text" width="70%" height={28} />
-                  <Skeleton variant="text" width="50%" height={20} sx={{ mt: 0.5 }} />
-                  <Skeleton variant="text" width="60%" height={20} />
+              <Card elevation={2} sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+                <Skeleton variant="rectangular" width="100%" height={180} />
+                <CardContent sx={{ flex: 1, pb: 0 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
+                    <Skeleton variant="rounded" width={72} height={22} />
+                  </Box>
+                  <Skeleton variant="text" width="80%" height={28} />
+                  <Skeleton variant="text" width="60%" height={20} sx={{ mt: 0.5 }} />
+                  <Skeleton variant="text" width="70%" height={20} />
+                  <Box sx={{ display: "flex", justifyContent: "space-between", mt: 1.5 }}>
+                    <Skeleton variant="text" width="40%" height={20} />
+                    <Skeleton variant="text" width="25%" height={20} />
+                  </Box>
+                  <Box sx={{ display: "flex", gap: 0.5, mt: 1 }}>
+                    <Skeleton variant="circular" width={26} height={26} />
+                    <Skeleton variant="circular" width={26} height={26} />
+                    <Skeleton variant="circular" width={26} height={26} />
+                  </Box>
                 </CardContent>
-                <CardActions sx={{ px: 2, pb: 2 }}>
+                <CardActions sx={{ px: 2, pb: 2, pt: 1 }}>
                   <Skeleton variant="rounded" width={80} height={32} />
                 </CardActions>
               </Card>
@@ -320,16 +343,10 @@ export default function Trips() {
             })}
           </Grid>
 
-          {hasMore && (
-            <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
-              <Button
-                variant="outlined"
-                onClick={handleLoadMore}
-                disabled={loadingMore}
-                startIcon={loadingMore ? <CircularProgress size={16} /> : null}
-              >
-                {loadingMore ? "Loading..." : "Load More"}
-              </Button>
+          <Box ref={sentinelRef} sx={{ height: 1 }} />
+          {loadingMore && (
+            <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
+              <CircularProgress size={28} />
             </Box>
           )}
         </>

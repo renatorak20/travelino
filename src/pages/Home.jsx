@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import {
   Box,
   Container,
+  Grid,
   Typography,
   Avatar,
   Card,
@@ -12,10 +13,9 @@ import {
   Skeleton,
   Dialog,
   DialogContent,
-  List,
-  ListItem,
-  ListItemAvatar,
+  Divider,
   TextField,
+  Tooltip,
 } from "@mui/material";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import FavoriteIcon from "@mui/icons-material/Favorite";
@@ -24,11 +24,12 @@ import PersonIcon from "@mui/icons-material/Person";
 import PeopleOutlineIcon from "@mui/icons-material/PeopleOutline";
 import PlaceIcon from "@mui/icons-material/Place";
 import SendIcon from "@mui/icons-material/Send";
+import NearMeOutlinedIcon from "@mui/icons-material/NearMeOutlined";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../config";
 
-const SUGGEST_EVERY = 4; // insert a "People you might know" card after every N posts
+const SUGGEST_EVERY = 4;
 
 export default function Home() {
   const navigate = useNavigate();
@@ -43,38 +44,42 @@ export default function Home() {
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
 
-  // Suggested users — two pools
-  const [suggestedUsers, setSuggestedUsers] = useState([]);     // empty-state slider
-  const [suggestedForFeed, setSuggestedForFeed] = useState([]); // between-post cards
+  const [suggestedUsers, setSuggestedUsers] = useState([]);
+  const [suggestedForFeed, setSuggestedForFeed] = useState([]);
 
   const [followLoadingIds, setFollowLoadingIds] = useState(new Set());
   const [followingSet, setFollowingSet] = useState(new Set());
 
-  // Modal state
   const [selectedPost, setSelectedPost] = useState(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [modalImagesLoading, setModalImagesLoading] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [commentLoading, setCommentLoading] = useState(false);
 
-  // Infinite scroll sentinel
-  const sentinelRef = useRef(null);
+  // Share state
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [sharePostRef, setSharePostRef] = useState(null);
+  const [mutualFollowers, setMutualFollowers] = useState([]);
+  const [sharingSendingId, setSharingSendingId] = useState(null);
 
-  // ── Init ───────────────────────────────────────────────────────────────────
-  useEffect(() => {
-    init();
-  }, []);
+  const sentinelRef = useRef(null);
+  const myFollowersRef = useRef([]);
+  const allUsersRef = useRef([]);
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  useEffect(() => { init(); }, []);
 
   const init = async () => {
     setLoading(true);
     try {
       const meRes = await axios.get(`${API_BASE_URL}/users/${myId}`, { headers });
       const myFollowing = meRes.data.following || [];
+      const myFollowers = meRes.data.followers || [];
       setFollowing(myFollowing);
       setFollowingSet(new Set(myFollowing.map(String)));
+      myFollowersRef.current = myFollowers;
 
       if (myFollowing.length > 0) {
-        // Fetch feed + all users in parallel
         const [feedRes, usersRes] = await Promise.all([
           axios.get(`${API_BASE_URL}/posts/feed?page=1&limit=10`, { headers }),
           axios.get(`${API_BASE_URL}/users`, { headers }),
@@ -84,8 +89,10 @@ export default function Home() {
         setHasMore(feedRes.data.hasMore || false);
         setPage(1);
 
-        // Non-followed users for between-post suggestions
-        const nonFollowed = (usersRes.data || [])
+        const allUsers = usersRes.data || [];
+        allUsersRef.current = allUsers;
+
+        const nonFollowed = allUsers
           .filter(
             (u) =>
               String(u._id) !== String(myId) &&
@@ -95,7 +102,6 @@ export default function Home() {
           .slice(0, 10);
         setSuggestedForFeed(nonFollowed);
 
-        // Preload thumbnails before revealing feed
         const thumbnailUrls = fetchedPosts.map((p) => p.image?.[0]).filter(Boolean);
         if (thumbnailUrls.length === 0) {
           setFeedPosts(fetchedPosts);
@@ -117,7 +123,9 @@ export default function Home() {
         return;
       } else {
         const usersRes = await axios.get(`${API_BASE_URL}/users`, { headers });
-        const others = (usersRes.data || []).filter((u) => String(u._id) !== String(myId));
+        const allUsers = usersRes.data || [];
+        allUsersRef.current = allUsers;
+        const others = allUsers.filter((u) => String(u._id) !== String(myId));
         setSuggestedUsers(others.sort(() => Math.random() - 0.5));
       }
     } catch (err) {
@@ -126,13 +134,11 @@ export default function Home() {
     setLoading(false);
   };
 
-  // ── Infinite scroll ────────────────────────────────────────────────────────
+  // ── Infinite scroll ───────────────────────────────────────────────────────
   useEffect(() => {
     if (!hasMore || loadingMore) return;
     const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) handleLoadMore();
-      },
+      ([entry]) => { if (entry.isIntersecting) handleLoadMore(); },
       { threshold: 0.1 }
     );
     if (sentinelRef.current) observer.observe(sentinelRef.current);
@@ -140,7 +146,7 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasMore, loadingMore, feedPosts.length]);
 
-  // ── Follow (empty state + between-post cards) ──────────────────────────────
+  // ── Follow ────────────────────────────────────────────────────────────────
   const handleFollowSuggested = async (userId) => {
     setFollowLoadingIds((prev) => new Set(prev).add(userId));
     try {
@@ -193,7 +199,7 @@ export default function Home() {
     setLoadingMore(false);
   };
 
-  // ── Post helpers ───────────────────────────────────────────────────────────
+  // ── Post helpers ──────────────────────────────────────────────────────────
   const isPostLiked = (post) =>
     Array.isArray(post?.likes) && post.likes.map(String).includes(String(myId));
 
@@ -262,11 +268,39 @@ export default function Home() {
     setCommentLoading(false);
   };
 
-  // ── Skeleton loading ───────────────────────────────────────────────────────
+  // ── Share ─────────────────────────────────────────────────────────────────
+  const handleOpenShare = (post) => {
+    setSharePostRef(post);
+    const followerIds = new Set(myFollowersRef.current.map(String));
+    const mutual = allUsersRef.current.filter(
+      (u) => String(u._id) !== String(myId) &&
+             followingSet.has(String(u._id)) &&
+             followerIds.has(String(u._id))
+    );
+    setMutualFollowers(mutual);
+    setShareDialogOpen(true);
+  };
+
+  const handleSendShare = async (toUserId) => {
+    if (!sharePostRef || sharingSendingId) return;
+    setSharingSendingId(toUserId);
+    try {
+      const post = sharePostRef;
+      const text = `📸 Shared a post: "${post.title}"${post.location ? `  📍 ${post.location}` : ""}`;
+      await axios.post(`${API_BASE_URL}/messages`, { receiver: toUserId, text }, { headers });
+      setShareDialogOpen(false);
+      setSharePostRef(null);
+    } catch (err) {
+      console.error("Share error:", err);
+    }
+    setSharingSendingId(null);
+  };
+
+  // ── Skeleton ──────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <Container maxWidth="sm" sx={{ py: 4 }}>
-        <Skeleton variant="text" width={120} height={40} sx={{ mb: 3 }} />
+        <Skeleton variant="text" width={140} height={40} sx={{ mb: 3 }} />
         <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
           {[1, 2, 3].map((i) => (
             <Card key={i} elevation={2}>
@@ -277,16 +311,16 @@ export default function Home() {
                   <Skeleton variant="text" width="25%" height={16} />
                 </Box>
               </Box>
-              <Skeleton variant="rectangular" width="100%" height={300} />
-              <CardContent sx={{ pt: 1 }}>
-                <Skeleton variant="text" width="60%" height={24} />
-                <Skeleton variant="text" width="90%" height={20} />
-                <Skeleton variant="text" width="75%" height={20} />
-                <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
+              <Skeleton variant="rectangular" width="100%" height={260} />
+              <CardContent>
+                <Skeleton variant="text" width="65%" height={24} />
+                <Skeleton variant="text" width="45%" height={18} />
+                <Skeleton variant="text" width="90%" height={18} />
+                <Box sx={{ display: "flex", gap: 1, mt: 1.5 }}>
                   <Skeleton variant="circular" width={32} height={32} />
-                  <Skeleton variant="text" width={20} sx={{ alignSelf: "center" }} />
+                  <Skeleton variant="text" width={24} sx={{ alignSelf: "center" }} />
                   <Skeleton variant="circular" width={32} height={32} />
-                  <Skeleton variant="text" width={20} sx={{ alignSelf: "center" }} />
+                  <Skeleton variant="text" width={24} sx={{ alignSelf: "center" }} />
                 </Box>
               </CardContent>
             </Card>
@@ -296,7 +330,7 @@ export default function Home() {
     );
   }
 
-  // ── Empty state ────────────────────────────────────────────────────────────
+  // ── Empty state ───────────────────────────────────────────────────────────
   if (following.length === 0) {
     return (
       <Container maxWidth="md" sx={{ py: 6 }}>
@@ -364,7 +398,7 @@ export default function Home() {
     );
   }
 
-  // ── Feed ───────────────────────────────────────────────────────────────────
+  // ── Feed ──────────────────────────────────────────────────────────────────
   return (
     <Container maxWidth="sm" sx={{ py: 4 }}>
       <Typography variant="h5" sx={{ mb: 3 }}>Your Feed</Typography>
@@ -374,142 +408,201 @@ export default function Home() {
           <Typography color="text.secondary">No posts yet from people you follow.</Typography>
         </Box>
       ) : (
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+        <Grid container spacing={3} alignItems="stretch">
           {feedPosts.map((post, index) => (
             <React.Fragment key={post._id}>
               {/* ── Post card ─────────────────────────────────────────── */}
-              <Card elevation={2}>
-                {/* Author header */}
-                <Box
+              <Grid item xs={12}>
+                <Card
+                  elevation={2}
                   sx={{
-                    display: "flex", alignItems: "center", gap: 1.5, p: 1.5,
-                    cursor: "pointer", "&:hover": { bgcolor: "action.hover" },
+                    height: "100%",
+                    display: "flex",
+                    flexDirection: "column",
+                    transition: "box-shadow 0.2s",
+                    "&:hover": { boxShadow: 6 },
                   }}
-                  onClick={() => navigate(`/profile/${post.author?._id}`)}
                 >
-                  <Avatar src={post.author?.avatar} sx={{ width: 36, height: 36 }}>
-                    {!post.author?.avatar && <PersonIcon />}
-                  </Avatar>
-                  <Box>
-                    <Typography variant="body2" fontWeight="bold">{post.author?.username}</Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {new Date(post.createdAt).toLocaleDateString()}
-                    </Typography>
+                  {/* Author header */}
+                  <Box
+                    sx={{
+                      display: "flex", alignItems: "center", gap: 1.5, px: 2, py: 1.5,
+                      cursor: "pointer", "&:hover": { bgcolor: "action.hover" },
+                    }}
+                    onClick={() => navigate(`/profile/${post.author?._id}`)}
+                  >
+                    <Avatar src={post.author?.avatar} sx={{ width: 38, height: 38 }}>
+                      {!post.author?.avatar && <PersonIcon />}
+                    </Avatar>
+                    <Box>
+                      <Typography variant="body2" fontWeight="bold">{post.author?.username}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {new Date(post.createdAt).toLocaleDateString()}
+                      </Typography>
+                    </Box>
                   </Box>
-                </Box>
 
-                {/* Image */}
-                {post.image?.length > 0 && (
+                  {/* Image — fixed height so all cards align */}
                   <Box
                     component="img"
-                    src={post.image[0]}
+                    src={post.image?.[0] || ""}
                     alt=""
-                    sx={{ width: "100%", maxHeight: 500, objectFit: "cover", display: "block", cursor: "pointer" }}
                     onClick={() => handleOpenModal(post)}
+                    sx={{
+                      width: "100%",
+                      height: 260,
+                      objectFit: "cover",
+                      display: post.image?.length ? "block" : "none",
+                      cursor: "pointer",
+                    }}
                   />
-                )}
 
-                <CardContent sx={{ pt: 1 }}>
-                  {post.title && (
-                    <Typography variant="subtitle1" fontWeight="bold">{post.title}</Typography>
-                  )}
-                  {post.location && (
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.25 }}>
-                      <PlaceIcon sx={{ fontSize: 13, color: "text.secondary" }} />
-                      <Typography variant="caption" color="text.secondary">{post.location}</Typography>
+                  {/* Content */}
+                  <CardContent
+                    sx={{
+                      flex: 1,
+                      display: "flex",
+                      flexDirection: "column",
+                      px: 2,
+                      pt: 1.5,
+                      pb: "12px !important",
+                    }}
+                  >
+                    {post.title && (
+                      <Typography variant="subtitle1" fontWeight="bold" noWrap>
+                        {post.title}
+                      </Typography>
+                    )}
+
+                    {post.location && (
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.25 }}>
+                        <PlaceIcon sx={{ fontSize: 13, color: "text.secondary" }} />
+                        <Typography variant="caption" color="text.secondary">{post.location}</Typography>
+                      </Box>
+                    )}
+
+                    {post.description && (
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{
+                          mt: 0.75,
+                          overflow: "hidden",
+                          display: "-webkit-box",
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: "vertical",
+                        }}
+                      >
+                        {post.description}
+                      </Typography>
+                    )}
+
+                    {/* Like / comment / share row pinned to bottom */}
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: "auto", pt: 1 }}>
+                      <IconButton
+                        size="small"
+                        color={isPostLiked(post) ? "error" : "default"}
+                        onClick={() => handleLike(post._id)}
+                      >
+                        {isPostLiked(post) ? <FavoriteIcon fontSize="small" /> : <FavoriteBorderIcon fontSize="small" />}
+                      </IconButton>
+                      <Typography variant="body2" sx={{ mr: 0.5 }}>{post.likes?.length || 0}</Typography>
+
+                      <IconButton size="small" onClick={() => handleOpenModal(post)}>
+                        <ChatBubbleOutlineIcon fontSize="small" />
+                      </IconButton>
+                      <Typography variant="body2">{post.comments?.length || 0}</Typography>
+
+                      <Box sx={{ flex: 1 }} />
+                      <Tooltip title="Send to a friend">
+                        <IconButton
+                          size="small"
+                          onClick={(e) => { e.stopPropagation(); handleOpenShare(post); }}
+                        >
+                          <NearMeOutlinedIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
                     </Box>
-                  )}
-                  {post.description && (
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                      {post.description}
-                    </Typography>
-                  )}
+                  </CardContent>
+                </Card>
+              </Grid>
 
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 1 }}>
-                    <IconButton
-                      size="small"
-                      color={isPostLiked(post) ? "error" : "default"}
-                      onClick={() => handleLike(post._id)}
-                    >
-                      {isPostLiked(post) ? <FavoriteIcon fontSize="small" /> : <FavoriteBorderIcon fontSize="small" />}
-                    </IconButton>
-                    <Typography variant="body2">{post.likes?.length || 0}</Typography>
-
-                    <IconButton size="small" onClick={() => handleOpenModal(post)}>
-                      <ChatBubbleOutlineIcon fontSize="small" />
-                    </IconButton>
-                    <Typography variant="body2">{post.comments?.length || 0}</Typography>
-                  </Box>
-                </CardContent>
-              </Card>
-
-              {/* ── Suggested person after every Nth post ─────────────── */}
+              {/* ── Suggested person after every Nth post — full width ─── */}
               {(index + 1) % SUGGEST_EVERY === 0 && suggestedForFeed.length > 0 && (() => {
                 const u = suggestedForFeed[Math.floor(index / SUGGEST_EVERY) % suggestedForFeed.length];
                 const iAmFollowing = followingSet.has(String(u._id));
                 const isLoadingFollow = followLoadingIds.has(u._id);
                 return (
-                  <Card
-                    elevation={1}
-                    sx={{ border: "1px solid", borderColor: "divider", bgcolor: "action.hover" }}
-                  >
-                    <CardContent sx={{ py: 1.5 }}>
-                      <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: "block" }}>
-                        People you might know
-                      </Typography>
-                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <Box
-                          sx={{ display: "flex", alignItems: "center", gap: 1.5, cursor: "pointer" }}
-                          onClick={() => navigate(`/profile/${u._id}`)}
-                        >
-                          <Avatar src={u.avatar} sx={{ width: 44, height: 44 }}>
-                            {!u.avatar && <PersonIcon />}
-                          </Avatar>
-                          <Box>
-                            <Typography variant="body2" fontWeight="bold">{u.username}</Typography>
-                            {u.bio && (
-                              <Typography variant="caption" color="text.secondary" noWrap sx={{ maxWidth: 180 }}>
-                                {u.bio}
-                              </Typography>
-                            )}
+                  <Grid item xs={12} key={`suggest-${index}`}>
+                    <Card
+                      elevation={0}
+                      sx={{ border: "1px solid", borderColor: "divider", bgcolor: "action.hover" }}
+                    >
+                      <CardContent sx={{ py: 1.5 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: "block" }}>
+                          People you might know
+                        </Typography>
+                        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <Box
+                            sx={{ display: "flex", alignItems: "center", gap: 1.5, cursor: "pointer" }}
+                            onClick={() => navigate(`/profile/${u._id}`)}
+                          >
+                            <Avatar src={u.avatar} sx={{ width: 44, height: 44 }}>
+                              {!u.avatar && <PersonIcon />}
+                            </Avatar>
+                            <Box>
+                              <Typography variant="body2" fontWeight="bold">{u.username}</Typography>
+                              {u.bio && (
+                                <Typography variant="caption" color="text.secondary" noWrap sx={{ maxWidth: 260 }}>
+                                  {u.bio}
+                                </Typography>
+                              )}
+                            </Box>
                           </Box>
+                          <Button
+                            size="small"
+                            variant={iAmFollowing ? "outlined" : "contained"}
+                            disabled={isLoadingFollow}
+                            onClick={(e) => { e.stopPropagation(); handleFollowSuggested(u._id); }}
+                          >
+                            {isLoadingFollow ? <CircularProgress size={14} /> : iAmFollowing ? "Unfollow" : "Follow"}
+                          </Button>
                         </Box>
-                        <Button
-                          size="small"
-                          variant={iAmFollowing ? "outlined" : "contained"}
-                          disabled={isLoadingFollow}
-                          onClick={(e) => { e.stopPropagation(); handleFollowSuggested(u._id); }}
-                        >
-                          {isLoadingFollow ? <CircularProgress size={14} /> : iAmFollowing ? "Unfollow" : "Follow"}
-                        </Button>
-                      </Box>
-                    </CardContent>
-                  </Card>
+                      </CardContent>
+                    </Card>
+                  </Grid>
                 );
               })()}
             </React.Fragment>
           ))}
 
           {/* Infinite scroll sentinel */}
-          {hasMore && <div ref={sentinelRef} style={{ height: 1 }} />}
-          {loadingMore && (
-            <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
-              <CircularProgress size={28} />
-            </Box>
-          )}
-        </Box>
+          <Grid item xs={12}>
+            {hasMore && <div ref={sentinelRef} style={{ height: 1 }} />}
+            {loadingMore && (
+              <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
+                <CircularProgress size={28} />
+              </Box>
+            )}
+          </Grid>
+        </Grid>
       )}
 
-      {/* ── Post detail modal ──────────────────────────────────────────────── */}
-      <Dialog open={!!selectedPost} onClose={handleCloseModal} maxWidth="lg" fullWidth>
-        <DialogContent sx={{ p: 0, display: "flex", height: "600px" }}>
+      {/* ── Post detail modal ────────────────────────────────────────────── */}
+      <Dialog open={!!selectedPost} onClose={handleCloseModal} maxWidth="xl" fullWidth>
+        <DialogContent sx={{ p: 0, display: "flex", height: "88vh" }}>
           {selectedPost && (
             <>
               {/* Left: image */}
               <Box
                 sx={{
-                  flex: 1, display: "flex", justifyContent: "center", alignItems: "center",
-                  bgcolor: "#111", position: "relative",
+                  flex: 1,
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  bgcolor: "#111",
+                  position: "relative",
+                  minWidth: 0,
                 }}
               >
                 {selectedPost.image?.length > 0 ? (
@@ -549,18 +642,19 @@ export default function Home() {
                 )}
               </Box>
 
-              {/* Right: details */}
-              <Box sx={{ width: 350, display: "flex", flexDirection: "column" }}>
+              {/* Right: details + comments */}
+              <Box sx={{ width: 420, display: "flex", flexDirection: "column", flexShrink: 0 }}>
+
                 {/* Author */}
                 <Box
                   sx={{
-                    display: "flex", alignItems: "center", gap: 1.5, p: 2,
-                    borderBottom: "1px solid #ddd", cursor: "pointer",
-                    "&:hover": { bgcolor: "action.hover" },
+                    display: "flex", alignItems: "center", gap: 1.5, px: 2.5, py: 2,
+                    borderBottom: "1px solid", borderColor: "divider",
+                    cursor: "pointer", "&:hover": { bgcolor: "action.hover" },
                   }}
                   onClick={() => { handleCloseModal(); navigate(`/profile/${selectedPost.author?._id}`); }}
                 >
-                  <Avatar src={selectedPost.author?.avatar} sx={{ width: 36, height: 36 }}>
+                  <Avatar src={selectedPost.author?.avatar} sx={{ width: 40, height: 40 }}>
                     {!selectedPost.author?.avatar && <PersonIcon />}
                   </Avatar>
                   <Box>
@@ -571,84 +665,212 @@ export default function Home() {
                   </Box>
                 </Box>
 
-                {/* Title + location + description */}
-                <Box sx={{ p: 2, borderBottom: "1px solid #ddd" }}>
+                {/* Title + location + description + actions */}
+                <Box sx={{ px: 2.5, pt: 2, pb: 1.5, borderBottom: "1px solid", borderColor: "divider" }}>
                   {selectedPost.title && (
                     <Typography variant="subtitle1" fontWeight="bold">{selectedPost.title}</Typography>
                   )}
                   {selectedPost.location && (
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.25 }}>
-                      <PlaceIcon sx={{ fontSize: 13, color: "text.secondary" }} />
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.5 }}>
+                      <PlaceIcon sx={{ fontSize: 14, color: "text.secondary" }} />
                       <Typography variant="caption" color="text.secondary">{selectedPost.location}</Typography>
                     </Box>
                   )}
                   {selectedPost.description && (
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.6 }}>
                       {selectedPost.description}
                     </Typography>
                   )}
+                  {/* Like + share inline */}
+                  <Box sx={{ display: "flex", alignItems: "center", mt: 1.25 }}>
+                    <IconButton
+                      size="small"
+                      color={isPostLiked(selectedPost) ? "error" : "default"}
+                      onClick={() => handleLike(selectedPost._id)}
+                      sx={{ ml: -0.75 }}
+                    >
+                      {isPostLiked(selectedPost) ? <FavoriteIcon fontSize="small" /> : <FavoriteBorderIcon fontSize="small" />}
+                    </IconButton>
+                    <Typography variant="body2" color="text.secondary">
+                      {selectedPost.likes?.length || 0} {selectedPost.likes?.length === 1 ? "like" : "likes"}
+                    </Typography>
+                    <Box sx={{ flex: 1 }} />
+                    <Tooltip title="Send to a friend">
+                      <IconButton size="small" onClick={() => handleOpenShare(selectedPost)}>
+                        <NearMeOutlinedIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
                 </Box>
 
-                {/* Likes */}
-                <Box sx={{ display: "flex", alignItems: "center", p: 1.5, borderBottom: "1px solid #ddd" }}>
-                  <IconButton
-                    size="small"
-                    color={isPostLiked(selectedPost) ? "error" : "default"}
-                    onClick={() => handleLike(selectedPost._id)}
-                  >
-                    {isPostLiked(selectedPost) ? <FavoriteIcon /> : <FavoriteBorderIcon />}
-                  </IconButton>
-                  <Typography variant="body2">{selectedPost.likes?.length || 0} likes</Typography>
-                </Box>
+                {/* Comments list */}
+                <Box sx={{ flex: 1, overflowY: "auto", px: 2.5, py: 1.5 }}>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1.5, textTransform: "uppercase", fontSize: "0.7rem", letterSpacing: 0.8 }}>
+                    Comments ({selectedPost.comments?.length || 0})
+                  </Typography>
 
-                {/* Comments */}
-                <Box sx={{ flex: 1, overflowY: "auto", p: 2 }}>
-                  <Typography variant="subtitle2" sx={{ mb: 1 }}>Comments</Typography>
                   {selectedPost.comments?.length > 0 ? (
-                    <List disablePadding>
-                      {selectedPost.comments.map((c) => (
-                        <ListItem key={c._id} alignItems="flex-start" disableGutters>
-                          <ListItemAvatar sx={{ minWidth: 36 }}>
+                    <Box sx={{ display: "flex", flexDirection: "column", gap: 0 }}>
+                      {selectedPost.comments.map((c, idx) => (
+                        <Box key={c._id}>
+                          {/* Comment */}
+                          <Box sx={{ display: "flex", gap: 1.5, py: 1.5 }}>
                             <Avatar
                               src={c.author?.avatar}
-                              sx={{ width: 28, height: 28, cursor: "pointer" }}
-                              onClick={() => { handleCloseModal(); navigate(`/profile/${c.author?._id}`); }}
-                            />
-                          </ListItemAvatar>
-                          <Box>
-                            <Typography
-                              variant="body2" fontWeight="bold"
-                              sx={{ cursor: "pointer", display: "inline" }}
+                              sx={{ width: 36, height: 36, flexShrink: 0, cursor: "pointer" }}
                               onClick={() => { handleCloseModal(); navigate(`/profile/${c.author?._id}`); }}
                             >
-                              {c.author?.username || "User"}
-                            </Typography>
-                            <Typography variant="body2" sx={{ display: "inline", ml: 0.5 }}>{c.text}</Typography>
+                              {!c.author?.avatar && <PersonIcon sx={{ fontSize: 18 }} />}
+                            </Avatar>
+                            <Box sx={{ flex: 1, minWidth: 0 }}>
+                              <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.75, flexWrap: "wrap" }}>
+                                <Typography
+                                  variant="body2"
+                                  fontWeight="bold"
+                                  sx={{ cursor: "pointer", "&:hover": { textDecoration: "underline" } }}
+                                  onClick={() => { handleCloseModal(); navigate(`/profile/${c.author?._id}`); }}
+                                >
+                                  {c.author?.username || "User"}
+                                </Typography>
+                                <Typography variant="body2" sx={{ lineHeight: 1.5 }}>{c.text}</Typography>
+                              </Box>
+                              {c.createdAt && (
+                                <Typography variant="caption" color="text.disabled" sx={{ mt: 0.25, display: "block" }}>
+                                  {new Date(c.createdAt).toLocaleDateString()}
+                                </Typography>
+                              )}
+
+                              {/* Replies */}
+                              {c.replies?.length > 0 && (
+                                <Box sx={{ mt: 1.25, display: "flex", flexDirection: "column", gap: 1.25 }}>
+                                  {c.replies.map((r, rIdx) => (
+                                    <Box key={rIdx} sx={{ display: "flex", gap: 1.25 }}>
+                                      <Avatar
+                                        src={r.author?.avatar}
+                                        sx={{ width: 28, height: 28, flexShrink: 0, cursor: "pointer" }}
+                                        onClick={() => { handleCloseModal(); navigate(`/profile/${r.author?._id}`); }}
+                                      >
+                                        {!r.author?.avatar && <PersonIcon sx={{ fontSize: 14 }} />}
+                                      </Avatar>
+                                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                                        <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.75, flexWrap: "wrap" }}>
+                                          <Typography
+                                            variant="body2"
+                                            fontWeight="bold"
+                                            sx={{ fontSize: "0.8rem", cursor: "pointer", "&:hover": { textDecoration: "underline" } }}
+                                            onClick={() => { handleCloseModal(); navigate(`/profile/${r.author?._id}`); }}
+                                          >
+                                            {r.author?.username || "User"}
+                                          </Typography>
+                                          <Typography variant="body2" sx={{ fontSize: "0.8rem" }}>{r.text}</Typography>
+                                        </Box>
+                                      </Box>
+                                    </Box>
+                                  ))}
+                                </Box>
+                              )}
+                            </Box>
                           </Box>
-                        </ListItem>
+
+                          {idx < selectedPost.comments.length - 1 && (
+                            <Divider sx={{ opacity: 0.5 }} />
+                          )}
+                        </Box>
                       ))}
-                    </List>
+                    </Box>
                   ) : (
-                    <Typography variant="body2" color="text.secondary">No comments yet.</Typography>
+                    <Box sx={{ textAlign: "center", py: 4 }}>
+                      <ChatBubbleOutlineIcon sx={{ fontSize: 36, color: "text.disabled", mb: 1 }} />
+                      <Typography variant="body2" color="text.secondary">No comments yet.</Typography>
+                      <Typography variant="caption" color="text.disabled">Be the first to comment!</Typography>
+                    </Box>
                   )}
                 </Box>
 
                 {/* Add comment */}
-                <Box sx={{ p: 2, borderTop: "1px solid #ddd", display: "flex", gap: 1 }}>
+                <Box
+                  sx={{
+                    px: 2, py: 1.5,
+                    borderTop: "1px solid", borderColor: "divider",
+                    display: "flex", gap: 1, alignItems: "center",
+                  }}
+                >
                   <TextField
-                    fullWidth size="small" placeholder="Add a comment..."
+                    fullWidth
+                    size="small"
+                    placeholder="Add a comment…"
                     value={commentText}
                     onChange={(e) => setCommentText(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleAddComment(); }
                     }}
+                    multiline
+                    maxRows={3}
                   />
-                  <IconButton color="primary" disabled={commentLoading || !commentText.trim()} onClick={handleAddComment}>
+                  <IconButton
+                    color="primary"
+                    disabled={commentLoading || !commentText.trim()}
+                    onClick={handleAddComment}
+                  >
                     {commentLoading ? <CircularProgress size={20} /> : <SendIcon />}
                   </IconButton>
                 </Box>
               </Box>
             </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Share dialog ─────────────────────────────────────────────────── */}
+      <Dialog
+        open={shareDialogOpen}
+        onClose={() => { setShareDialogOpen(false); setSharePostRef(null); }}
+        maxWidth="xs"
+        fullWidth
+      >
+        <Box sx={{ px: 2.5, pt: 2.5, pb: 1.5, borderBottom: "1px solid", borderColor: "divider" }}>
+          <Typography variant="h6">Send post</Typography>
+          <Typography variant="caption" color="text.secondary">
+            {sharePostRef?.title && `"${sharePostRef.title}" · `}People you mutually follow
+          </Typography>
+        </Box>
+        <DialogContent sx={{ p: 0, maxHeight: 420, overflowY: "auto" }}>
+          {mutualFollowers.length === 0 ? (
+            <Box sx={{ p: 3, textAlign: "center" }}>
+              <NearMeOutlinedIcon sx={{ fontSize: 40, color: "text.disabled", mb: 1 }} />
+              <Typography variant="body2" color="text.secondary">No mutual followers yet.</Typography>
+              <Typography variant="caption" color="text.disabled">Follow people back to share posts with them.</Typography>
+            </Box>
+          ) : (
+            mutualFollowers.map((u) => (
+              <Box
+                key={u._id}
+                sx={{
+                  display: "flex", alignItems: "center", gap: 1.5,
+                  px: 2.5, py: 1.5, cursor: "pointer",
+                  "&:hover": { bgcolor: "action.hover" },
+                  opacity: sharingSendingId && sharingSendingId !== u._id ? 0.4 : 1,
+                }}
+                onClick={() => handleSendShare(u._id)}
+              >
+                <Avatar src={u.avatar} sx={{ width: 46, height: 46 }}>
+                  {!u.avatar && <PersonIcon />}
+                </Avatar>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography variant="body2" fontWeight="bold">{u.username}</Typography>
+                  {u.bio && (
+                    <Typography variant="caption" color="text.secondary" noWrap>{u.bio}</Typography>
+                  )}
+                </Box>
+                {sharingSendingId === u._id ? (
+                  <CircularProgress size={20} />
+                ) : (
+                  <IconButton size="small" tabIndex={-1}>
+                    <SendIcon fontSize="small" />
+                  </IconButton>
+                )}
+              </Box>
+            ))
           )}
         </DialogContent>
       </Dialog>
