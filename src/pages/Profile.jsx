@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
+import { motion } from "framer-motion";
 import {
   Avatar,
   Button,
@@ -11,7 +12,6 @@ import {
   CardContent,
   CardMedia,
   IconButton,
-  Skeleton,
   Dialog,
   DialogContent,
   List,
@@ -30,7 +30,8 @@ import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
 import PeopleIcon from "@mui/icons-material/People";
 import ExploreOutlinedIcon from "@mui/icons-material/ExploreOutlined";
 import PersonIcon from "@mui/icons-material/Person";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
+import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import CameraAltIcon from "@mui/icons-material/CameraAlt";
@@ -49,7 +50,7 @@ import { useTheme } from "../context/ThemeContext";
 export default function UserProfile() {
   const { userId } = useParams();
   const navigate = useNavigate();
-  const { darkMode } = useTheme();
+  useTheme();
 
   // Detect if we are viewing our own profile
   const myId = localStorage.getItem("userId");
@@ -684,10 +685,23 @@ const handleLikePost = async (postId) => {
 
                     {/* Multi-image badge */}
                     {post.image?.length > 1 && (
-                      <Box sx={{ position: "absolute", top: 6, right: 6, lineHeight: 0 }}>
+                      <Box
+                        sx={{
+                          position: "absolute",
+                          top: 6,
+                          right: 6,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 0.4,
+                          pointerEvents: "none",
+                        }}
+                      >
                         <CollectionsIcon
-                          sx={{ fontSize: 20, color: "white", filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.7))" }}
+                          sx={{ fontSize: 18, color: "white", filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.7))" }}
                         />
+                        <Typography variant="caption" sx={{ color: "white", fontWeight: 700, fontSize: "0.7rem", lineHeight: 1, filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.7))" }}>
+                          {post.image.length}
+                        </Typography>
                       </Box>
                     )}
                   </Box>
@@ -788,14 +802,70 @@ const handleLikePost = async (postId) => {
                     )}
                     {!modalImagesLoading && selectedPost.image.length > 1 && (
                       <>
-                        <IconButton onClick={handlePrevImage}
-                          sx={{ position: "absolute", left: 8, top: "50%", bgcolor: "rgba(0,0,0,0.4)", color: "white" }}>
-                          &lt;
-                        </IconButton>
-                        <IconButton onClick={handleNextImage}
-                          sx={{ position: "absolute", right: 8, top: "50%", bgcolor: "rgba(0,0,0,0.4)", color: "white" }}>
-                          &gt;
-                        </IconButton>
+                        <Box sx={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }}>
+                          <motion.div
+                            initial={{ opacity: 0.6 }}
+                            whileHover={{ opacity: 1, scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                          >
+                            <IconButton
+                              onClick={handlePrevImage}
+                              sx={{ bgcolor: "rgba(0,0,0,0.5)", color: "white", backdropFilter: "blur(4px)", "&:hover": { bgcolor: "rgba(0,0,0,0.7)" } }}
+                            >
+                              <ArrowBackIosNewIcon fontSize="small" />
+                            </IconButton>
+                          </motion.div>
+                        </Box>
+                        <Box sx={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)" }}>
+                          <motion.div
+                            initial={{ opacity: 0.6 }}
+                            whileHover={{ opacity: 1, scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                          >
+                            <IconButton
+                              onClick={handleNextImage}
+                              sx={{ bgcolor: "rgba(0,0,0,0.5)", color: "white", backdropFilter: "blur(4px)", "&:hover": { bgcolor: "rgba(0,0,0,0.7)" } }}
+                            >
+                              <ArrowForwardIosIcon fontSize="small" />
+                            </IconButton>
+                          </motion.div>
+                        </Box>
+                        {/* Dot indicators */}
+                        <Box
+                          sx={{
+                            position: "absolute",
+                            bottom: 14,
+                            left: 0,
+                            right: 0,
+                            display: "flex",
+                            justifyContent: "center",
+                            alignItems: "center",
+                            gap: "6px",
+                            pointerEvents: "none",
+                          }}
+                        >
+                          {selectedPost.image.map((_, i) => (
+                            <motion.div
+                              key={i}
+                              animate={{
+                                width: i === currentImageIndex ? 20 : 8,
+                                opacity: i === currentImageIndex ? 1 : 0.5,
+                              }}
+                              transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                              style={{
+                                height: 8,
+                                borderRadius: 4,
+                                backgroundColor: "white",
+                                boxShadow: "0 1px 3px rgba(0,0,0,0.5)",
+                                pointerEvents: "auto",
+                                cursor: "pointer",
+                              }}
+                              onClick={() => setCurrentImageIndex(i)}
+                            />
+                          ))}
+                        </Box>
                       </>
                     )}
                   </>

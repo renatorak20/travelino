@@ -25,6 +25,8 @@ import PeopleOutlineIcon from "@mui/icons-material/PeopleOutline";
 import PlaceIcon from "@mui/icons-material/Place";
 import SendIcon from "@mui/icons-material/Send";
 import NearMeOutlinedIcon from "@mui/icons-material/NearMeOutlined";
+import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
+import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import axios from "axios";
@@ -471,19 +473,48 @@ export default function Home() {
                   </Box>
 
                   {/* Image — fixed height so all cards align */}
-                  <Box
-                    component="img"
-                    src={post.image?.[0] || ""}
-                    alt=""
-                    onClick={() => handleOpenModal(post)}
-                    sx={{
-                      width: "100%",
-                      height: 260,
-                      objectFit: "cover",
-                      display: post.image?.length ? "block" : "none",
-                      cursor: "pointer",
-                    }}
-                  />
+                  {post.image?.length > 0 && (
+                    <Box sx={{ position: "relative" }}>
+                      <Box
+                        component="img"
+                        src={post.image[0]}
+                        alt=""
+                        onClick={() => handleOpenModal(post)}
+                        sx={{
+                          width: "100%",
+                          height: 260,
+                          objectFit: "cover",
+                          display: "block",
+                          cursor: "pointer",
+                        }}
+                      />
+                      {post.image.length > 1 && (
+                        <Box
+                          sx={{
+                            position: "absolute",
+                            top: 8,
+                            right: 8,
+                            bgcolor: "rgba(0,0,0,0.55)",
+                            color: "white",
+                            borderRadius: "12px",
+                            px: 1,
+                            py: 0.25,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 0.5,
+                            fontSize: "0.72rem",
+                            fontWeight: 600,
+                            backdropFilter: "blur(4px)",
+                            userSelect: "none",
+                            pointerEvents: "none",
+                          }}
+                        >
+                          <Box component="span" sx={{ fontSize: "0.8rem", lineHeight: 1 }}>⧉</Box>
+                          {post.image.length}
+                        </Box>
+                      )}
+                    </Box>
+                  )}
 
                   {/* Content */}
                   <CardContent
@@ -661,22 +692,74 @@ export default function Home() {
                     )}
                     {!modalImagesLoading && selectedPost.image.length > 1 && (
                       <>
-                        <IconButton
-                          onClick={() =>
-                            setCurrentImageIndex((p) => (p - 1 + selectedPost.image.length) % selectedPost.image.length)
-                          }
-                          sx={{ position: "absolute", left: 8, top: "50%", bgcolor: "rgba(0,0,0,0.4)", color: "white" }}
+                        <Box sx={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }}>
+                          <motion.div
+                            initial={{ opacity: 0.6 }}
+                            whileHover={{ opacity: 1, scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                          >
+                            <IconButton
+                              onClick={() =>
+                                setCurrentImageIndex((p) => (p - 1 + selectedPost.image.length) % selectedPost.image.length)
+                              }
+                              sx={{ bgcolor: "rgba(0,0,0,0.5)", color: "white", backdropFilter: "blur(4px)", "&:hover": { bgcolor: "rgba(0,0,0,0.7)" } }}
+                            >
+                              <ArrowBackIosNewIcon fontSize="small" />
+                            </IconButton>
+                          </motion.div>
+                        </Box>
+                        <Box sx={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)" }}>
+                          <motion.div
+                            initial={{ opacity: 0.6 }}
+                            whileHover={{ opacity: 1, scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                          >
+                            <IconButton
+                              onClick={() =>
+                                setCurrentImageIndex((p) => (p + 1) % selectedPost.image.length)
+                              }
+                              sx={{ bgcolor: "rgba(0,0,0,0.5)", color: "white", backdropFilter: "blur(4px)", "&:hover": { bgcolor: "rgba(0,0,0,0.7)" } }}
+                            >
+                              <ArrowForwardIosIcon fontSize="small" />
+                            </IconButton>
+                          </motion.div>
+                        </Box>
+                        {/* Dot indicators */}
+                        <Box
+                          sx={{
+                            position: "absolute",
+                            bottom: 14,
+                            left: 0,
+                            right: 0,
+                            display: "flex",
+                            justifyContent: "center",
+                            alignItems: "center",
+                            gap: "6px",
+                            pointerEvents: "none",
+                          }}
                         >
-                          &lt;
-                        </IconButton>
-                        <IconButton
-                          onClick={() =>
-                            setCurrentImageIndex((p) => (p + 1) % selectedPost.image.length)
-                          }
-                          sx={{ position: "absolute", right: 8, top: "50%", bgcolor: "rgba(0,0,0,0.4)", color: "white" }}
-                        >
-                          &gt;
-                        </IconButton>
+                          {selectedPost.image.map((_, i) => (
+                            <motion.div
+                              key={i}
+                              animate={{
+                                width: i === currentImageIndex ? 20 : 8,
+                                opacity: i === currentImageIndex ? 1 : 0.5,
+                              }}
+                              transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                              style={{
+                                height: 8,
+                                borderRadius: 4,
+                                backgroundColor: "white",
+                                boxShadow: "0 1px 3px rgba(0,0,0,0.5)",
+                                pointerEvents: "auto",
+                                cursor: "pointer",
+                              }}
+                              onClick={() => setCurrentImageIndex(i)}
+                            />
+                          ))}
+                        </Box>
                       </>
                     )}
                   </>
