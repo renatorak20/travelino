@@ -45,13 +45,10 @@ import CloseIcon from "@mui/icons-material/Close";
 import axios from "axios";
 import { useNavigate, useParams } from "react-router-dom";
 import { API_BASE_URL } from "../config";
-import { useTheme } from "../context/ThemeContext";
 
 export default function UserProfile() {
   const { userId } = useParams();
   const navigate = useNavigate();
-  useTheme();
-
   // Detect if we are viewing our own profile
   const myId = localStorage.getItem("userId");
   const isMyProfile = myId === userId;
