@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Box,
   Avatar,
+  Button,
   Typography,
   TextField,
   IconButton,
@@ -21,6 +22,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import axios from "axios";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { API_BASE_URL } from "../config";
@@ -454,18 +456,21 @@ export default function Messages() {
                                     sx={{ width: "100%", height: 180, objectFit: "cover", display: "block" }}
                                   />
                                 )}
-                                <Box sx={{ px: 1.5, pt: 1, pb: 0.5 }}>
-                                  <Typography variant="body2" fontWeight="bold" noWrap>
-                                    {msg.postRef.title}
-                                  </Typography>
-                                  {msg.postRef.location && (
-                                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.25 }}>
-                                      <PlaceIcon sx={{ fontSize: 12, opacity: 0.7 }} />
-                                      <Typography variant="caption" sx={{ opacity: 0.8 }} noWrap>
-                                        {msg.postRef.location}
-                                      </Typography>
-                                    </Box>
-                                  )}
+                                <Box sx={{ px: 1.5, pt: 1, pb: 0.5, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 0.5 }}>
+                                  <Box sx={{ minWidth: 0 }}>
+                                    <Typography variant="body2" fontWeight="bold" noWrap>
+                                      {msg.postRef.title}
+                                    </Typography>
+                                    {msg.postRef.location && (
+                                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.25 }}>
+                                        <PlaceIcon sx={{ fontSize: 12, opacity: 0.7 }} />
+                                        <Typography variant="caption" sx={{ opacity: 0.8 }} noWrap>
+                                          {msg.postRef.location}
+                                        </Typography>
+                                      </Box>
+                                    )}
+                                  </Box>
+                                  <OpenInNewIcon sx={{ fontSize: 14, opacity: 0.6, flexShrink: 0, mt: 0.25 }} />
                                 </Box>
                               </Box>
                             ) : (
@@ -521,6 +526,19 @@ export default function Messages() {
             />
           )}
           <Box sx={{ p: 2 }}>
+            {postPreview?.author && (
+              <Box
+                sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5, cursor: "pointer" }}
+                onClick={() => { setPostPreview(null); navigate(`/profile/${postPreview.author._id}`); }}
+              >
+                <Avatar src={postPreview.author.avatar} sx={{ width: 32, height: 32 }}>
+                  {!postPreview.author.avatar && <PersonIcon sx={{ fontSize: 16 }} />}
+                </Avatar>
+                <Typography variant="body2" fontWeight="bold" sx={{ "&:hover": { textDecoration: "underline" } }}>
+                  {postPreview.author.username}
+                </Typography>
+              </Box>
+            )}
             <Typography variant="h6" fontWeight="bold">{postPreview?.title}</Typography>
             {postPreview?.location && (
               <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.5 }}>
@@ -528,6 +546,23 @@ export default function Messages() {
                 <Typography variant="body2" color="text.secondary">{postPreview.location}</Typography>
               </Box>
             )}
+            {postPreview?.description && (
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                {postPreview.description}
+              </Typography>
+            )}
+            <Button
+              variant="contained"
+              size="small"
+              endIcon={<OpenInNewIcon />}
+              sx={{ mt: 2 }}
+              onClick={() => {
+                setPostPreview(null);
+                navigate(`/profile/${postPreview.author?._id}`);
+              }}
+            >
+              View Post
+            </Button>
           </Box>
         </DialogContent>
       </Dialog>

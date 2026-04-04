@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
 import { Box } from "@mui/material";
-import { AnimatePresence, motion } from "framer-motion";
+
 import { Toaster } from "react-hot-toast";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -79,36 +79,25 @@ function App() {
           overflowY: "auto",
         }}
       >
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={location.pathname}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.18, ease: "easeInOut" }}
-            style={{ flex: 1, display: "flex", flexDirection: "column", height: "100%" }}
-          >
-            <Routes>
-              <Route path="/" element={protect(<Home />)} />
-              <Route path="/login" element={<Login onLogin={fetchCurrentUser} />} />
-              <Route path="/register" element={<Register onLogin={fetchCurrentUser} />} />
-              <Route path="/not-found" element={<NotFound />} />
+        <Routes>
+          <Route path="/" element={protect(<Home />)} />
+          <Route path="/login" element={<Login onLogin={fetchCurrentUser} />} />
+          <Route path="/register" element={<Register onLogin={fetchCurrentUser} />} />
+          <Route path="/not-found" element={<NotFound />} />
 
-              <Route path="/home" element={protect(<Home />)} />
-              <Route path="/create" element={protect(<Create />)} />
-              <Route path="/messages" element={protect(<Messages />)} />
-              <Route path="/search" element={protect(<Search />)} />
-              <Route path="/profile" element={protect(<Profile />)} />
-              <Route path="/profile/:userId" element={protect(<Profile />)} />
-              <Route path="/settings" element={protect(<Settings />)} />
-              <Route path="/trips" element={protect(<Trips />)} />
-              <Route path="/trips/:tripId" element={protect(<TripDetail />)} />
-              <Route path="/create-trip" element={protect(<CreateTrip />)} />
+          <Route path="/home" element={protect(<Home />)} />
+          <Route path="/create" element={protect(<Create />)} />
+          <Route path="/messages" element={protect(<Messages />)} />
+          <Route path="/search" element={protect(<Search />)} />
+          <Route path="/profile" element={protect(<Profile />)} />
+          <Route path="/profile/:userId" element={protect(<Profile />)} />
+          <Route path="/settings" element={protect(<Settings />)} />
+          <Route path="/trips" element={protect(<Trips />)} />
+          <Route path="/trips/:tripId" element={protect(<TripDetail />)} />
+          <Route path="/create-trip" element={protect(<CreateTrip />)} />
 
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </motion.div>
-        </AnimatePresence>
+          <Route path="*" element={<NotFound />} />
+        </Routes>
       </Box>
     </Box>
   );
