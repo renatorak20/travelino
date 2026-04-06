@@ -66,9 +66,10 @@ export default function Messages() {
   // ── Load conversations on mount ──────────────────────────────────────────
   useEffect(() => {
     fetchConversations();
-  }, []);
+  });
 
   // ── Handle ?with=userId query param ──────────────────────────────────────
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const withId = searchParams.get("with");
     if (!withId || openedFromUrlRef.current === withId) return;
@@ -77,7 +78,7 @@ export default function Messages() {
       .get(`${API_BASE_URL}/users/${withId}`, { headers })
       .then((res) => openConversation(res.data))
       .catch(console.error);
-  }, [searchParams]);
+  }, [searchParams, headers, openConversation]);
 
   // ── Scroll to bottom ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -85,6 +86,7 @@ export default function Messages() {
   }, [messages]);
 
   // ── Polling ───────────────────────────────────────────────────────────────
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!activePartner) { clearInterval(pollRef.current); return; }
     const tick = () => {
@@ -94,7 +96,7 @@ export default function Messages() {
     clearInterval(pollRef.current);
     pollRef.current = setInterval(tick, POLL_INTERVAL);
     return () => clearInterval(pollRef.current);
-  }, [activePartner]);
+  }, [activePartner, pollNewMessages]);
 
   const fetchConversations = async () => {
     setConvLoading(true);

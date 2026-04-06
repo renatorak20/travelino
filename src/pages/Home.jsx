@@ -80,7 +80,7 @@ export default function Home() {
   const allUsersRef = useRef([]);
 
   // ── Init ──────────────────────────────────────────────────────────────────
-  useEffect(() => { init(); }, []);
+  useEffect(() => { init(); });
 
   const init = async () => {
     setLoading(true);

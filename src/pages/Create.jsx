@@ -18,7 +18,6 @@ import {
 } from "@mui/material";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import DeleteIcon from "@mui/icons-material/Delete";
-import AddPhotoAlternateIcon from "@mui/icons-material/AddPhotoAlternate";
 import CancelIcon from "@mui/icons-material/Cancel";
 import PublishIcon from "@mui/icons-material/Publish";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
@@ -128,7 +127,7 @@ export default function Create() {
         postFormData.append("image", image);
       });
 
-      const res = await axios.post(`${API_BASE_URL}/posts`, postFormData, {
+      await axios.post(`${API_BASE_URL}/posts`, postFormData, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "multipart/form-data",

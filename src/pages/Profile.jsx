@@ -70,10 +70,10 @@ export default function UserProfile() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [modalImagesLoading, setModalImagesLoading] = useState(false);
   const [error, setError] = useState("");
-  const [likeLoading, setLikeLoading] = useState(false);
+  const [likeLoading] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [commentLoading, setCommentLoading] = useState(false);
-  const [commentError, setCommentError] = useState("");
+  const [, setCommentError] = useState("");
   const [replyingToId, setReplyingToId] = useState(null);
   const [replyText, setReplyText] = useState("");
   const [replyLoading, setReplyLoading] = useState(false);
@@ -222,7 +222,7 @@ const handleLikePost = async (postId) => {
   useEffect(() => {
     fetchUserProfile();
     fetchUserPosts();
-  }, [userId]);
+  }, [userId, fetchUserPosts, fetchUserProfile]);
 
   const fetchUserProfile = async () => {
     if (!userId || userId === "null" || userId === "undefined") {
